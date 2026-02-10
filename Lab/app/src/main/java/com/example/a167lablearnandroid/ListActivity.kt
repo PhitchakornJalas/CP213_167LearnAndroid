@@ -1,6 +1,7 @@
 package com.example.a167lablearnandroid
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -41,9 +42,40 @@ class ListActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 //        enableEdgeToEdge()
+        Log.i("Lifecycle", "ListActivity : onCreate")
         setContent {
             listScreen()
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        Log.i("Lifecycle", "ListActivity : onStart")
+    }
+
+    override fun onResume() {
+        super.onResume()
+        Log.i("Lifecycle", "ListActivity : onResume")
+    }
+
+    override fun onPause() {
+        super.onPause()
+        Log.i("Lifecycle", "ListActivity : onPause")
+    }
+
+    override fun onStop() {
+        super.onStop()
+        Log.i("Lifecycle", "ListActivity : onStop")
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        Log.i("Lifecycle", "ListActivity : onDestroy")
+    }
+
+    override fun onRestart() {
+        super.onRestart()
+        Log.i("Lifecycle", "ListActivity : onRestart")
     }
 }
 

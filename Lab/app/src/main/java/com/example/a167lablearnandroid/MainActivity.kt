@@ -3,6 +3,7 @@ package com.example.a167lablearnandroid
 import android.content.Intent
 import android.media.Image
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -53,10 +54,41 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 //        enableEdgeToEdge()
+        Log.i("Lifecycle", "MainActivity : onCreate")
         setContent {
             RPGCardView()
             previewScreen()
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        Log.i("Lifecycle", "MainActivity : onStart")
+    }
+
+    override fun onResume() {
+        super.onResume()
+        Log.i("Lifecycle", "MainActivity : onResume")
+    }
+
+    override fun onPause() {
+        super.onPause()
+        Log.i("Lifecycle", "MainActivity : onPause")
+    }
+
+    override fun onStop() {
+        super.onStop()
+        Log.i("Lifecycle", "MainActivity : onStop")
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        Log.i("Lifecycle", "MainActivity : onDestroy")
+    }
+
+    override fun onRestart() {
+        super.onRestart()
+        Log.i("Lifecycle", "MainActivity : onRestart")
     }
 
     @Composable
@@ -96,7 +128,9 @@ class MainActivity : ComponentActivity() {
                     .clip(RoundedCornerShape(16.dp)
                 )
                     .clickable {
-                        startActivity((Intent(this@MainActivity, ListActivity::class.java)))
+//                        startActivity((Intent(this@MainActivity, ListActivity::class.java)))
+                        startActivity((Intent(this@MainActivity, MainActivity2::class.java)))
+
                     }
             )
 
