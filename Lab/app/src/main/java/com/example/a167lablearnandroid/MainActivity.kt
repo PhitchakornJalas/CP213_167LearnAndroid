@@ -129,8 +129,7 @@ class MainActivity : ComponentActivity() {
                 )
                     .clickable {
 //                        startActivity((Intent(this@MainActivity, ListActivity::class.java)))
-                        startActivity((Intent(this@MainActivity, MainActivity2::class.java)))
-
+//                        startActivity((Intent(this@MainActivity, MainActivity2::class.java)))
                     }
             )
 
