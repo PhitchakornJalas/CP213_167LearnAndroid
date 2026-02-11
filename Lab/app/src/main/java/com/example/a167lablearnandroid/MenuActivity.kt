@@ -9,13 +9,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.a167lablearnandroid.ui.theme._167LabLearnAndroidTheme
+import com.example.a167lablearnandroid.architecture.mvc.MvcCounterActivity
+import com.example.a167lablearnandroid.architecture.mvi.MviCounterActivity
+import com.example.a167lablearnandroid.architecture.mvp.MvpCounterActivity
+import com.example.a167lablearnandroid.architecture.mvvm.MvvmCounterActivity
 
 class MenuActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,6 +39,26 @@ class MenuActivity : ComponentActivity() {
                     startActivity((Intent(this@MenuActivity, MainActivity2::class.java)))
                 }) {
                     Text("LifeCycleComposeActivity")
+                }
+                Button(onClick = {
+                    startActivity((Intent(this@MenuActivity, MvcCounterActivity::class.java)))
+                }) {
+                    Text("MvcCounterActivity")
+                }
+                Button(onClick = {
+                    startActivity((Intent(this@MenuActivity, MviCounterActivity::class.java)))
+                }) {
+                    Text("MviCounterActivity")
+                }
+                Button(onClick = {
+                    startActivity((Intent(this@MenuActivity, MvpCounterActivity::class.java)))
+                }) {
+                    Text("MvpCounterActivity")
+                }
+                Button(onClick = {
+                    startActivity((Intent(this@MenuActivity, MvvmCounterActivity::class.java)))
+                }) {
+                    Text("MvvmCounterActivity")
                 }
             }
         }

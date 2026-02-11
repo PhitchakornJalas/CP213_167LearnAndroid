@@ -14,6 +14,26 @@
         android:supportsRtl="true"
         android:theme="@style/Theme._167LabLearnAndroid">
         <activity
+            android:name=".architecture.mvc.MvcCounterActivity"
+            android:exported="true"
+            android:label="MVC Counter"
+            android:theme="@style/Theme._167LabLearnAndroid" />
+        <activity
+            android:name=".architecture.mvp.MvpCounterActivity"
+            android:exported="true"
+            android:label="MVP Counter"
+            android:theme="@style/Theme._167LabLearnAndroid" />
+        <activity
+            android:name=".architecture.mvvm.MvvmCounterActivity"
+            android:exported="true"
+            android:label="MVVM Counter"
+            android:theme="@style/Theme._167LabLearnAndroid" />
+        <activity
+            android:name=".architecture.mvi.MviCounterActivity"
+            android:exported="true"
+            android:label="MVI Counter"
+            android:theme="@style/Theme._167LabLearnAndroid" />
+        <activity
             android:name=".MenuActivity"
             android:exported="true"
             android:label="@string/title_activity_menu"
