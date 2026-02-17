@@ -60,6 +60,11 @@ class MenuActivity : ComponentActivity() {
                 }) {
                     Text("MvvmCounterActivity")
                 }
+                Button(onClick = {
+                    startActivity((Intent(this@MenuActivity, SharedPreferencesActivity::class.java)))
+                }) {
+                    Text("SharedPreferencesActivity")
+                }
             }
         }
     }

@@ -26,6 +26,8 @@ import androidx.compose.material3.Divider
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,7 +46,7 @@ class ListActivity : ComponentActivity() {
 //        enableEdgeToEdge()
         Log.i("Lifecycle", "ListActivity : onCreate")
         setContent {
-            listScreen()
+            listScreen(PokemonViewModel())
         }
     }
 
@@ -80,7 +82,10 @@ class ListActivity : ComponentActivity() {
 }
 
 @Composable
-fun listScreen() {
+fun listScreen(viewModel: PokemonViewModel) {
+
+    val pokemonList by viewModel.pokemonList.collectAsState()
+
     Column( // dark gray border
         modifier = Modifier
             .fillMaxSize()
@@ -182,7 +187,7 @@ fun listScreen() {
                         .border(2.dp, Color.Black, RoundedCornerShape(34.dp))
                         .padding(16.dp)
                 ) {
-                    items(allKantoPokemon) { item ->
+                    items(pokemonList) { item ->
                         Row(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -190,14 +195,14 @@ fun listScreen() {
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = "#${item.number.toString()} ${item.name}",
+                            Text(text = "#${item.entry_number.toString()} ${item.pokemon_species.name}",
                                 fontSize = 20.sp,
                                 color = Color(0xFF656565))
 
-                            val imageUrl = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${item.number}.png"
+                            val imageUrl = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${item.entry_number}.png"
                             AsyncImage(
                                 model = imageUrl,
-                                contentDescription = "Sprite of ${item.name}",
+                                contentDescription = "Sprite of ${item.pokemon_species.name}",
                                 modifier = Modifier
                                     .size(32.dp),
                                 placeholder = painterResource(id = R.drawable.ic_launcher_foreground),
@@ -217,48 +222,5 @@ fun listScreen() {
 @Preview
 @Composable
 fun listPreview() {
-    listScreen()
+    listScreen(PokemonViewModel())
 }
-
-data class Pokemon(
-    val name: String,
-    val number: Int
-)
-
-val allKantoPokemon = listOf(
-    Pokemon("Bulbasaur", 1),
-    Pokemon("Ivysaur", 2),
-    Pokemon("Venusaur", 3),
-    Pokemon("Charmander", 4),
-    Pokemon("Charmeleon", 5),
-    Pokemon("Charizard", 6),
-    Pokemon("Squirtle", 7),
-    Pokemon("Wartortle", 8),
-    Pokemon("Blastoise", 9),
-    Pokemon("Caterpie", 10),
-    Pokemon("Metapod", 11),
-    Pokemon("Butterfree", 12),
-    Pokemon("Weedle", 13),
-    Pokemon("Kakuna", 14),
-    Pokemon("Beedrill", 15),
-    Pokemon("Pidgey", 16),
-    Pokemon("Pidgeotto", 17),
-    Pokemon("Pidgeot", 18),
-    Pokemon("Rattata", 19),
-    Pokemon("Raticate", 20),
-    Pokemon("Spearow", 21),
-    Pokemon("Fearow", 22),
-    Pokemon("Ekans", 23),
-    Pokemon("Arbok", 24),
-    Pokemon("Pikachu", 25),
-    Pokemon("Raichu", 26),
-    Pokemon("Sandshrew", 27),
-    Pokemon("Sandslash", 28),
-    Pokemon("Nidoran♀", 29),
-    Pokemon("Nidorina", 30),
-    Pokemon("Nidoqueen", 31),
-    Pokemon("Nidoran♂", 32),
-    Pokemon("Nidorino", 33),
-    Pokemon("Nidoking", 34),
-    Pokemon("Clefairy", 35),
-)
