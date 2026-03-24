@@ -70,6 +70,11 @@ class MenuActivity : ComponentActivity() {
                 }) {
                     Text("Gallery & Permission")
                 }
+                Button(onClick = {
+                    startActivity((Intent(this@MenuActivity, SensorActivity::class.java)))
+                }) {
+                    Text("Sensor MVVM")
+                }
             }
         }
     }

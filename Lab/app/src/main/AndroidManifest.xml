@@ -87,6 +87,11 @@
             android:exported="true"
             android:label="Gallery Activity"
             android:theme="@style/Theme._167LabLearnAndroid" />
+        <activity
+            android:name=".SensorActivity"
+            android:exported="true"
+            android:label="Sensor Activity"
+            android:theme="@style/Theme._167LabLearnAndroid" />
     </application>
 
 </manifest>
