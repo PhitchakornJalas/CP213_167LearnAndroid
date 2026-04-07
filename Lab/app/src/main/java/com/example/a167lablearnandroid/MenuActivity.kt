@@ -128,6 +128,18 @@ class MenuActivity : ComponentActivity() {
                 Button(modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp), onClick = { navigateWithTransition(Part8AdaptiveLayoutsActivity::class.java, ActivityTransitionType.SLIDE) }) {
                     Text("Part8AdaptiveLayoutsActivity - [${ActivityTransitionType.SLIDE.desc}]")
                 }
+                Button(modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp), onClick = { navigateWithTransition(Part9Activity::class.java, ActivityTransitionType.SCALE_UP) }) {
+                    Text("Part9Activity (Collapsing) - [${ActivityTransitionType.SCALE_UP.desc}]")
+                }
+                Button(modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp), onClick = { navigateWithTransition(Part10Activity::class.java, ActivityTransitionType.FADE) }) {
+                    Text("Part10Activity (App Widget) - [${ActivityTransitionType.FADE.desc}]")
+                }
+                Button(modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp), onClick = { navigateWithTransition(Part11Activity::class.java, ActivityTransitionType.CLIP_REVEAL) }) {
+                    Text("Part11Activity (Skeleton) - [${ActivityTransitionType.CLIP_REVEAL.desc}]")
+                }
+                Button(modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp), onClick = { navigateWithTransition(Part12Activity::class.java, ActivityTransitionType.SCALE_UP) }) {
+                    Text("Part12Activity (Popups) - [${ActivityTransitionType.SCALE_UP.desc}]")
+                }
             }
         }
     }
