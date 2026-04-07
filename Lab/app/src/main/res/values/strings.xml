@@ -4,4 +4,17 @@
     <string name="title_activity_list">ListActivity</string>
     <string name="title_activity_menu">MenuActivity</string>
     <string name="title_activity_shared_preferences">SharedPreferencesActivity</string>
+    <string name="title_activity_part1_animation">Part1AnimationActivity</string>
+    <string name="title_activity_part2_complex_lists_pagination">
+        Part2ComplexListsPaginationActivity
+    </string>
+    <string name="title_activity_part3_graphics_effects_canvas">Part3GraphicsEffectsCanvasActivity
+    </string>
+    <string name="title_activity_part4_advanced_gestures_interactive_uiactivity">
+        Part4AdvancedGesturesInteractiveUIActivity
+    </string>
+    <string name="title_activity_part5_compose_side_effects">Part5ComposeSideEffectsActivity
+    </string>
+    <string name="title_activity_part6_view_interoperability">Part6ViewInteroperabilityActivity
+    </string>
 </resources>

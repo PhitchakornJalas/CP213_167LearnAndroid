@@ -3,7 +3,9 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
 
     <application
@@ -15,6 +17,41 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme._167LabLearnAndroid">
+        <activity
+            android:name=".Part8AdaptiveLayoutsActivity"
+            android:exported="false"
+            android:label="Part 8 Adaptive Layouts"
+            android:theme="@style/Theme._167LabLearnAndroid" />
+        <activity
+            android:name=".Part6ViewInteroperabilityActivity"
+            android:exported="false"
+            android:label="@string/title_activity_part6_view_interoperability"
+            android:theme="@style/Theme._167LabLearnAndroid" />
+        <activity
+            android:name=".Part5ComposeSideEffectsActivity"
+            android:exported="false"
+            android:label="@string/title_activity_part5_compose_side_effects"
+            android:theme="@style/Theme._167LabLearnAndroid" />
+        <activity
+            android:name=".Part4AdvancedGesturesInteractiveUIActivity"
+            android:exported="false"
+            android:label="@string/title_activity_part4_advanced_gestures_interactive_uiactivity"
+            android:theme="@style/Theme._167LabLearnAndroid" />
+        <activity
+            android:name=".Part3GraphicsEffectsCanvasActivity"
+            android:exported="false"
+            android:label="@string/title_activity_part3_graphics_effects_canvas"
+            android:theme="@style/Theme._167LabLearnAndroid" />
+        <activity
+            android:name=".Part2ComplexListsPaginationActivity"
+            android:exported="false"
+            android:label="@string/title_activity_part2_complex_lists_pagination"
+            android:theme="@style/Theme._167LabLearnAndroid" />
+        <activity
+            android:name=".Part1AnimationActivity"
+            android:exported="false"
+            android:label="@string/title_activity_part1_animation"
+            android:theme="@style/Theme._167LabLearnAndroid" />
         <activity
             android:name=".SharedPreferencesActivity"
             android:exported="false"
