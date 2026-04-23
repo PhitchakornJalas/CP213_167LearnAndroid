@@ -20,14 +20,38 @@ class _HomeViewState extends State<HomeView> {
     final dailyVM = Provider.of<DailyDetailViewModel>(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Plan Travel - ปฏิทิน'), backgroundColor: Colors.blueAccent),
+      appBar: AppBar(
+          title: const Text('Plan Travel - ปฏิทิน'),
+          backgroundColor: Colors.blueAccent,
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: TextButton(
+                onPressed: _goToToday,
+                child: const Text(
+                  'วันนี้',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ),
+          ],
+      ),
       body: TableCalendar(
         firstDay: DateTime.utc(2020, 1, 1),
-        lastDay: DateTime.utc(2030, 12, 31),
+        lastDay: DateTime.utc(2100, 12, 31),
         focusedDay: _focusedDay,
         calendarFormat: _calendarFormat,
         rowHeight: 85,
         selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+        headerStyle: HeaderStyle(
+          formatButtonVisible: false, // ปิดปุ่มเดิมทิ้ง
+          titleCentered: true,
+          // เพิ่มปุ่ม Custom หรือจะไปใส่ใน AppBar แทนก็ได้
+        ),
         onDaySelected: (selectedDay, focusedDay) {
           setState(() {
             _selectedDay = selectedDay;
@@ -56,6 +80,13 @@ class _HomeViewState extends State<HomeView> {
         ),
       ),
     );
+  }
+
+  void _goToToday() {
+    setState(() {
+      _focusedDay = DateTime.now();
+      _selectedDay = DateTime.now();
+    });
   }
 
   Widget _buildCell(DateTime day, DailyDetailViewModel vm, {bool isToday = false, bool isSelected = false, bool isOutside = false}) {
