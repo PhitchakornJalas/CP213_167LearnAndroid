@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'home.dart';
+import 'home_view.dart';
 
 class SplashView extends StatefulWidget {
   const SplashView({super.key});
@@ -24,7 +24,7 @@ class _SplashViewState extends State<SplashView> {
     // ย้ายไปหน้า Calendar และลบหน้า Splash ออกจาก Stack (ย้อนกลับไม่ได้)
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const HomePage()),
+      MaterialPageRoute(builder: (context) => const HomeView()),
     );
   }
 
