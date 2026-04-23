@@ -59,7 +59,6 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _buildCell(DateTime day, DailyDetailViewModel vm, {bool isToday = false, bool isSelected = false, bool isOutside = false}) {
-    // ดึงข้อมูลโดยการ Normalize Date เสมอ (ล้างชั่วโมง นาที วินาที)
     final detail = vm.getDetail(day);
 
     return Container(
@@ -78,29 +77,47 @@ class _HomeViewState extends State<HomeView> {
             child: Text(
               '${day.day}',
               style: TextStyle(
-                // ถ้าเป็นวันที่นอกเดือน ให้ใช้สีจางลง
-                  color: isOutside ? Colors.grey : Colors.black87,
-                  fontWeight: isToday || isSelected ? FontWeight.bold : FontWeight.normal
+                color: isOutside ? Colors.grey : Colors.black87,
+                fontWeight: isToday || isSelected ? FontWeight.bold : FontWeight.normal,
+                fontSize: 12,
               ),
             ),
           ),
-          // แสดง Tag ถ้ามีข้อมูล ไม่ว่าจะอยู่ในเดือนไหนก็ตาม
-          if (detail != null && detail.title.isNotEmpty)
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 2),
-              padding: const EdgeInsets.all(2),
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: isOutside ? Colors.blueAccent.withOpacity(0.5) : Colors.blueAccent,
-                borderRadius: BorderRadius.circular(2),
+          if (detail != null) ...[
+            // ส่วนแสดงชื่อกิจกรรม (Tag)
+            if (detail.title.isNotEmpty)
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                padding: const EdgeInsets.all(2),
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: isOutside ? Colors.blueAccent.withOpacity(0.5) : Colors.blueAccent,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+                child: Text(
+                  detail.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white, fontSize: 9),
+                ),
               ),
-              child: Text(
-                detail.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white, fontSize: 10),
+
+            // ส่วนแสดงงบประมาณ Format: 0 / budget บาท
+            if (detail.budget.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+                child: Text(
+                  '0 / ${detail.budget} บาท',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: isOutside ? Colors.grey : Colors.green.shade700,
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
-            ),
+          ],
         ],
       ),
     );
