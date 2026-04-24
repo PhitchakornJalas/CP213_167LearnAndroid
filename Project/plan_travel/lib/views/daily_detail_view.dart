@@ -23,15 +23,29 @@ class _DailyDetailViewState extends State<DailyDetailView> {
 
   String _selectedType = 'today';
   int _customValue = 1;
+  bool _isAllDay = true;
+  late DateTime _startDateTime;
+  late DateTime _endDateTime;
 
   @override
   void initState() {
     super.initState();
+    // ตั้งค่าเวลาเริ่มต้น: ชั่วโมงถัดไป และ สิ้นสุดคืออีก 1 ชั่วโมงถัดไป
+    final now = DateTime.now();
+    _startDateTime = DateTime(widget.selectedDay.year, widget.selectedDay.month, widget.selectedDay.day, now.hour + 1, 0);
+    _endDateTime = _startDateTime.add(const Duration(hours: 1));
+
     final vm = Provider.of<DailyDetailViewModel>(context, listen: false);
     final detail = vm.getDetail(widget.selectedDay);
     
     _titleController = TextEditingController(text: detail?.title ?? '');
     _budgetController = TextEditingController(text: detail?.budget ?? '');
+
+    if (detail != null) {
+      _isAllDay = detail.isAllDay;
+      _startDateTime = detail.startTime;
+      _endDateTime = detail.endTime;
+    }
 
     if (detail != null && detail.savingStartDate != null) {
       final eventDay = DateTime(widget.selectedDay.year, widget.selectedDay.month, widget.selectedDay.day);
@@ -56,6 +70,39 @@ class _DailyDetailViewState extends State<DailyDetailView> {
     }
   }
 
+  // ฟังก์ชันเลือก วัน/เวลา
+  Future<void> _pickDateTime(bool isStart) async {
+    DateTime initial = isStart ? _startDateTime : _endDateTime;
+    
+    // เลือกวันที่
+    DateTime? date = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (date == null) return;
+
+    if (_isAllDay) {
+      setState(() {
+        if (isStart) _startDateTime = DateTime(date.year, date.month, date.day);
+        else _endDateTime = DateTime(date.year, date.month, date.day);
+      });
+    } else {
+      // เลือกเวลาต่อถ้าไม่ใช่ All Day
+      TimeOfDay? time = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(initial),
+      );
+      if (time == null) return;
+      setState(() {
+        final dt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+        if (isStart) _startDateTime = dt;
+        else _endDateTime = dt;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Normalize วันที่ปัจจุบัน
@@ -74,12 +121,36 @@ class _DailyDetailViewState extends State<DailyDetailView> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
+            // 1. ชื่อกิจกรรม
             TextField(
               controller: _titleController,
               enabled: !isLocked,
               decoration: const InputDecoration(labelText: 'ชื่อกิจกรรม/เป้าหมาย', border: OutlineInputBorder()),
             ),
+            const SizedBox(height: 10),
+
+            // 2. Toggle ตลอดวัน
+            SwitchListTile(
+              title: const Text("ตลอดวัน"),
+              value: _isAllDay,
+              onChanged: isLocked ? null : (v) => setState(() => _isAllDay = v),
+            ),
+
+            // 3. แสดงวัน/เวลา เริ่มต้น - สิ้นสุด
+            ListTile(
+              title: const Text("เริ่ม"),
+              trailing: Text(_isAllDay ? "${_startDateTime.day}/${_startDateTime.month}/${_startDateTime.year}" : "${_startDateTime.day}/${_startDateTime.month}/${_startDateTime.year}  ${_startDateTime.hour}:00"),
+              onTap: isLocked ? null : () => _pickDateTime(true),
+            ),
+            ListTile(
+              title: const Text("ถึง"),
+              trailing: Text(_isAllDay ? "${_endDateTime.day}/${_endDateTime.month}/${_endDateTime.year}" : "${_endDateTime.day}/${_endDateTime.month}/${_endDateTime.year}  ${_endDateTime.hour}:00"),
+              onTap: isLocked ? null : () => _pickDateTime(false),
+            ),
+
             const SizedBox(height: 20),
+            
+            // 4. งบประมาณ
             TextField(
               controller: _budgetController,
               enabled: !isLocked,
@@ -137,7 +208,10 @@ class _DailyDetailViewState extends State<DailyDetailView> {
                       selectedDayOnly, 
                       _titleController.text, 
                       _budgetController.text, 
-                      savingStart
+                      savingStart,
+                      _isAllDay,
+                      _startDateTime,
+                      _endDateTime,
                     );
                     Navigator.pop(context);
                   },

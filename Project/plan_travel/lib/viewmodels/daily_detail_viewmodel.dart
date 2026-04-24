@@ -37,9 +37,15 @@ class DailyDetailViewModel extends ChangeNotifier {
     return total;
   }
 
-  void updateDailyDetail(DateTime date, String title, String budget, DateTime? savingStart) {
-    _dailyDetails[DateTime(date.year, date.month, date.day)] = 
-        DailyDetailModel(title: title, budget: budget, savingStartDate: savingStart);
+  void updateDailyDetail(DateTime date, String title, String budget, DateTime? savingStart, bool isAllDay, DateTime start, DateTime end) {
+    _dailyDetails[DateTime(date.year, date.month, date.day)] = DailyDetailModel(
+      title: title,
+      budget: budget,
+      savingStartDate: savingStart,
+      isAllDay: isAllDay,
+      startTime: start,
+      endTime: end,
+    );
     notifyListeners();
   }
 }
