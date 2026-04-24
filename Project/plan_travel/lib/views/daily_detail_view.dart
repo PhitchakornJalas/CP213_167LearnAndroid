@@ -26,6 +26,13 @@ class _DailyDetailViewState extends State<DailyDetailView> {
 
   @override
   Widget build(BuildContext context) {
+    // --- ส่วนที่เพิ่มเพื่อเช็คว่าเป็นวันย้อนหลังหรือไม่ ---
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final selectDayOnly = DateTime(widget.selectedDay.year, widget.selectedDay.month, widget.selectedDay.day);
+    final isPast = selectDayOnly.isBefore(today);
+    // -------------------------------------------
+
     return Scaffold(
       appBar: AppBar(title: const Text('รายละเอียดรายวัน')),
       body: Padding(
@@ -37,29 +44,49 @@ class _DailyDetailViewState extends State<DailyDetailView> {
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
-            TextField(controller: _titleController, decoration: const InputDecoration(labelText: 'ชื่อกิจกรรม/เป้าหมาย', border: OutlineInputBorder())),
+            TextField(
+              controller: _titleController,
+              enabled: !isPast, // ถ้าเป็นอดีต ห้ามพิมพ์เพิ่ม
+              decoration: const InputDecoration(
+                  labelText: 'ชื่อกิจกรรม/เป้าหมาย',
+                  border: OutlineInputBorder()
+              ),
+            ),
             const SizedBox(height: 20),
             TextField(
               controller: _budgetController,
+              enabled: !isPast, // ถ้าเป็นอดีต ห้ามพิมพ์เพิ่ม
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: const InputDecoration(labelText: 'งบประมาณที่วางไว้', border: OutlineInputBorder(), suffixText: 'บาท'),
-            ),
-            const SizedBox(height: 30),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  context.read<DailyDetailViewModel>().updateDailyDetail(
-                      widget.selectedDay,
-                      _titleController.text,
-                      _budgetController.text
-                  );
-                  Navigator.pop(context);
-                },
-                child: const Text('บันทึกรายละเอียด'),
+              decoration: const InputDecoration(
+                  labelText: 'งบประมาณที่วางไว้',
+                  border: OutlineInputBorder(),
+                  suffixText: 'บาท'
               ),
             ),
+            const SizedBox(height: 30),
+            // แสดงปุ่มบันทึกเฉพาะวันที่ไม่ใช่ย้อนหลัง
+            if (!isPast)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    context.read<DailyDetailViewModel>().updateDailyDetail(
+                        widget.selectedDay,
+                        _titleController.text,
+                        _budgetController.text
+                    );
+                    Navigator.pop(context);
+                  },
+                  child: const Text('บันทึกรายละเอียด'),
+                ),
+              ),
+            // ถ้าเป็นวันย้อนหลัง อาจจะแสดงข้อความบอก User นิดหน่อย (เลือกใส่หรือไม่ใส่ก็ได้)
+            if (isPast)
+              const Text(
+                "* ไม่สามารถแก้ไขข้อมูลย้อนหลังได้",
+                style: TextStyle(color: Colors.red, fontSize: 12),
+              ),
           ],
         ),
       ),
