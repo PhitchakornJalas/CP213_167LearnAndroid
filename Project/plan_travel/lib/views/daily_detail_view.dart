@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/daily_detail_viewmodel.dart';
+import '../models/daily_detail_model.dart';
 
 class DailyDetailView extends StatefulWidget {
   final DateTime selectedDay;
-  const DailyDetailView({super.key, required this.selectedDay});
+  final DailyDetailModel? existingEvent; // เพิ่ม Optional parameter 
+
+  const DailyDetailView({super.key, required this.selectedDay, this.existingEvent});
 
   @override
   State<DailyDetailView> createState() => _DailyDetailViewState();
@@ -35,8 +39,7 @@ class _DailyDetailViewState extends State<DailyDetailView> {
     _startDateTime = DateTime(widget.selectedDay.year, widget.selectedDay.month, widget.selectedDay.day, now.hour + 1, 0);
     _endDateTime = _startDateTime.add(const Duration(hours: 1));
 
-    final vm = Provider.of<DailyDetailViewModel>(context, listen: false);
-    final detail = vm.getDetail(widget.selectedDay);
+    final detail = widget.existingEvent;
     
     _titleController = TextEditingController(text: detail?.title ?? '');
     _budgetController = TextEditingController(text: detail?.budget ?? '');
@@ -70,37 +73,50 @@ class _DailyDetailViewState extends State<DailyDetailView> {
     }
   }
 
-  // ฟังก์ชันเลือก วัน/เวลา
-  Future<void> _pickDateTime(bool isStart) async {
-    DateTime initial = isStart ? _startDateTime : _endDateTime;
-    
-    // เลือกวันที่
-    DateTime? date = await showDatePicker(
+  // ฟังก์ชันสำหรับเรียก Modal เลือกวันที่/เวลา กลางจอ
+  void _showCustomDatePicker(bool isStart) {
+    showCupertinoModalPopup(
       context: context,
-      initialDate: initial,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
+      builder: (BuildContext context) {
+        return Center( // จัดให้อยู่กลางจอ
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.8, // กำหนดความกว้าง 80% ของจอ
+            height: 300,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Column(
+              children: [
+                Expanded(
+                  child: CupertinoDatePicker(
+                    // ถ้า All Day โชว์แค่เดือน/วัน/ปี ถ้าไม่ใช่โชว์เวลาด้วย
+                    mode: _isAllDay 
+                        ? CupertinoDatePickerMode.date 
+                        : CupertinoDatePickerMode.dateAndTime,
+                    initialDateTime: isStart ? _startDateTime : _endDateTime,
+                    onDateTimeChanged: (DateTime newDateTime) {
+                      setState(() {
+                        if (isStart) {
+                          _startDateTime = newDateTime;
+                        } else {
+                          _endDateTime = newDateTime;
+                        }
+                      });
+                    },
+                  ),
+                ),
+                CupertinoButton(
+                  child: const Text('ตกลง', style: TextStyle(fontWeight: FontWeight.bold)),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
-    if (date == null) return;
-
-    if (_isAllDay) {
-      setState(() {
-        if (isStart) _startDateTime = DateTime(date.year, date.month, date.day);
-        else _endDateTime = DateTime(date.year, date.month, date.day);
-      });
-    } else {
-      // เลือกเวลาต่อถ้าไม่ใช่ All Day
-      TimeOfDay? time = await showTimePicker(
-        context: context,
-        initialTime: TimeOfDay.fromDateTime(initial),
-      );
-      if (time == null) return;
-      setState(() {
-        final dt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
-        if (isStart) _startDateTime = dt;
-        else _endDateTime = dt;
-      });
-    }
   }
 
   @override
@@ -139,13 +155,17 @@ class _DailyDetailViewState extends State<DailyDetailView> {
             // 3. แสดงวัน/เวลา เริ่มต้น - สิ้นสุด
             ListTile(
               title: const Text("เริ่ม"),
-              trailing: Text(_isAllDay ? "${_startDateTime.day}/${_startDateTime.month}/${_startDateTime.year}" : "${_startDateTime.day}/${_startDateTime.month}/${_startDateTime.year}  ${_startDateTime.hour}:00"),
-              onTap: isLocked ? null : () => _pickDateTime(true),
+              trailing: Text(_isAllDay 
+                  ? "${_startDateTime.day}/${_startDateTime.month}/${_startDateTime.year}" 
+                  : "${_startDateTime.day}/${_startDateTime.month}/${_startDateTime.year}  ${_startDateTime.hour}:${_startDateTime.minute.toString().padLeft(2, '0')}"),
+              onTap: isLocked ? null : () => _showCustomDatePicker(true),
             ),
             ListTile(
               title: const Text("ถึง"),
-              trailing: Text(_isAllDay ? "${_endDateTime.day}/${_endDateTime.month}/${_endDateTime.year}" : "${_endDateTime.day}/${_endDateTime.month}/${_endDateTime.year}  ${_endDateTime.hour}:00"),
-              onTap: isLocked ? null : () => _pickDateTime(false),
+              trailing: Text(_isAllDay 
+                  ? "${_endDateTime.day}/${_endDateTime.month}/${_endDateTime.year}" 
+                  : "${_endDateTime.day}/${_endDateTime.month}/${_endDateTime.year}  ${_endDateTime.hour}:${_endDateTime.minute.toString().padLeft(2, '0')}"),
+              onTap: isLocked ? null : () => _showCustomDatePicker(false),
             ),
 
             const SizedBox(height: 20),
@@ -193,6 +213,24 @@ class _DailyDetailViewState extends State<DailyDetailView> {
                       return;
                     }
 
+                    final vm = context.read<DailyDetailViewModel>();
+                    
+                    // ตรวจสอบเวลาทับกัน
+                    String? errorMsg = vm.checkTimeOverlap(
+                      widget.selectedDay,
+                      _startDateTime,
+                      _endDateTime,
+                      _isAllDay,
+                      excludeId: widget.existingEvent?.id,
+                    );
+                    
+                    if (errorMsg != null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(errorMsg), backgroundColor: Colors.red, duration: const Duration(seconds: 3))
+                      );
+                      return;
+                    }
+
                     DateTime? savingStart;
                     // ถ้ามีงบ ถึงจะส่งค่าวันเริ่มออมไปคำนวณ
                     if (hasBudget) {
@@ -204,14 +242,19 @@ class _DailyDetailViewState extends State<DailyDetailView> {
                       }
                     }
 
-                    context.read<DailyDetailViewModel>().updateDailyDetail(
+                    String eventId = widget.existingEvent?.id ?? DateTime.now().millisecondsSinceEpoch.toString();
+
+                    vm.addOrUpdateEvent(
                       selectedDayOnly, 
-                      _titleController.text, 
-                      _budgetController.text, 
-                      savingStart,
-                      _isAllDay,
-                      _startDateTime,
-                      _endDateTime,
+                      DailyDetailModel(
+                        id: eventId,
+                        title: _titleController.text,
+                        budget: _budgetController.text,
+                        savingStartDate: savingStart,
+                        isAllDay: _isAllDay,
+                        startTime: _startDateTime,
+                        endTime: _endDateTime,
+                      )
                     );
                     Navigator.pop(context);
                   },

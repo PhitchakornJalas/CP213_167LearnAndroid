@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/daily_detail_viewmodel.dart';
-import 'daily_detail_view.dart';
+import 'event_list_view.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -58,7 +58,7 @@ class _HomeViewState extends State<HomeView> {
           });
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => DailyDetailView(selectedDay: selectedDay)),
+            MaterialPageRoute(builder: (context) => EventListView(selectedDay: selectedDay)),
           );
         },
         calendarBuilders: CalendarBuilders(
@@ -80,10 +80,8 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _buildCell(DateTime day, DailyDetailViewModel vm, {bool isToday = false, bool isSelected = false, bool isOutside = false}) {
-    final detail = vm.getDetail(day);
+    final events = vm.getEventsForDay(day);
     final totalSaving = vm.getTotalSavingAmount(day);
-    // เช็คว่าวันนี้มีงานของตัวเองไหม
-    final hasEvent = detail != null && detail.title.isNotEmpty;
 
     // ฟังก์ชันช่วยจัดรูปแบบตัวเลข: ถ้ามีเศษโชว์ .5 ถ้าไม่มีโชว์เลขกลมๆ
     String formatAmount(double amount) {
@@ -114,8 +112,7 @@ class _HomeViewState extends State<HomeView> {
               ),
             ),
 
-          // 2. แสดง Event (ถ้ามี) - โชว์ Tag สีฟ้า และยอด 0 / Budget
-          if (hasEvent) ...[
+          for (var event in events)
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
               padding: const EdgeInsets.all(2),
@@ -125,23 +122,12 @@ class _HomeViewState extends State<HomeView> {
                 borderRadius: BorderRadius.circular(2),
               ),
               child: Text(
-                detail.title,
+                event.title, // แสดงแค่ชื่อกิจกรรม ไม่โชว์เวลา
+                style: const TextStyle(color: Colors.white, fontSize: 8),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white, fontSize: 9),
               ),
             ),
-            
-            // แสดงยอดงบประมาณเฉพาะเมื่อมีการกรอกตัวเลขไว้เท่านั้น
-            if (detail.budget.isNotEmpty && (double.tryParse(detail.budget) ?? 0) > 0)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 2),
-                child: Text(
-                  '0 / ${detail.budget} บ.',
-                  style: TextStyle(color: Colors.green.shade700, fontSize: 9, fontWeight: FontWeight.bold),
-                ),
-              ),
-          ],
         ],
       ),
     );
