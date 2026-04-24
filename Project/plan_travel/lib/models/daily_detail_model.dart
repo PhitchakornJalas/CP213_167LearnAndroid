@@ -1,6 +1,7 @@
 class DailyDetailModel {
-  final String title;  // ชื่อกิจกรรม/เป้าหมาย
-  final String budget; // งบประมาณ
+  final String title;
+  final String budget;
+  final DateTime? savingStartDate;
 
-  DailyDetailModel({required this.title, required this.budget});
+  DailyDetailModel({required this.title, required this.budget, this.savingStartDate});
 }
