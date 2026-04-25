@@ -1,10 +1,21 @@
 import 'package:flutter/material.dart';
 import '../models/daily_detail_model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class DailyDetailViewModel extends ChangeNotifier {
   // เปลี่ยนเป็น List เพื่อให้ 1 วันมีหลาย Event
   final Map<DateTime, List<DailyDetailModel>> _dailyDetails = {};
   Map<DateTime, List<DailyDetailModel>> get dailyDetails => _dailyDetails;
+
+  String savedPromptPay = "";
+  String savedAlias = "";
+
+  Future<void> loadBankInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+    savedPromptPay = prefs.getString('promptpay_id') ?? "";
+    savedAlias = prefs.getString('bank_alias') ?? "";
+    notifyListeners();
+  }
 
   List<DailyDetailModel> getEventsForDay(DateTime date) {
     final dayOnly = DateTime(date.year, date.month, date.day);

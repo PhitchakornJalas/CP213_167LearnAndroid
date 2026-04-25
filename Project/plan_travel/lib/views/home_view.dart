@@ -56,7 +56,17 @@ class _HomeViewState extends State<HomeView> {
           ),
         ] : null,
       ),
-      body: _pages[_selectedIndex],
+      body: _selectedIndex == 0 
+          ? SingleChildScrollView( // ครอบเฉพาะหน้าปฏิทิน
+              child: Column(
+                children: [
+                  _buildCalendarPage(context),
+                  // ถ้ามีข้อมูลอื่นๆ ใต้ปฏิทินก็ใส่ต่อตรงนี้ได้
+                  const SizedBox(height: 20), 
+                ],
+              ),
+            )
+          : _pages[_selectedIndex], // หน้าอื่นๆ ให้แสดงปกติ
       
       // 3. เพิ่ม Bottom Navigation Bar (โครง Dummy 4 เมนู)
       bottomNavigationBar: BottomNavigationBar(
@@ -97,6 +107,7 @@ class _HomeViewState extends State<HomeView> {
       focusedDay: _focusedDay,
       calendarFormat: _calendarFormat,
       rowHeight: 120,
+      availableGestures: AvailableGestures.all, // ให้เลื่อนปฏิทินได้ปกติ
       selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
       headerStyle: const HeaderStyle(
         formatButtonVisible: false,

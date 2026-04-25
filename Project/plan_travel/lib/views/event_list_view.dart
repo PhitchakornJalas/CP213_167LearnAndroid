@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/daily_detail_viewmodel.dart';
 import 'daily_detail_view.dart';
+import 'qr_payment_view.dart';
 
 class EventListView extends StatelessWidget {
   final DateTime selectedDay;
@@ -45,7 +46,43 @@ class EventListView extends StatelessWidget {
                       title: Text("ออมเพื่อ: ${item['title']}"),
                       // แก้ไข subtitle ให้โชว์วันที่เป้าหมาย + เวลา/ทั้งวัน
                       subtitle: Text("เป้าหมาย: ${item['targetDate'].day}/${item['targetDate'].month} ($timeInfo)"),
-                      trailing: Text("${item['amount'].toInt()} ฿", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      trailing: Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text("${item['amount'].toInt()} ฿", 
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          const SizedBox(width: 8),
+                          // ปุ่มกดออมเงิน
+                          ElevatedButton(
+                            onPressed: () async {
+                              // โหลดข้อมูลธนาคารล่าสุด
+                              await vm.loadBankInfo(); 
+                              
+                              if (vm.savedPromptPay.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text("กรุณาตั้งค่าบัญชีธนาคารก่อนออมเงิน"))
+                                );
+                                return;
+                              }
+
+                              Navigator.push(context, MaterialPageRoute(
+                                builder: (context) => QRPaymentView(
+                                  amount: item['amount'],
+                                  title: "ออมเพื่อ ${item['title']}",
+                                  promptPayId: vm.savedPromptPay,
+                                  accountName: vm.savedAlias,
+                                )
+                              ));
+                            },
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              backgroundColor: Colors.orange.shade100,
+                              foregroundColor: Colors.orange.shade900,
+                            ),
+                            child: const Text("ออมเลย"),
+                          ),
+                        ],
+                      ),
                     );
                   },
                 ),
