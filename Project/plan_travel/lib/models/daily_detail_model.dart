@@ -6,6 +6,7 @@ class DailyDetailModel {
   final bool isAllDay;
   final DateTime startTime;
   final DateTime endTime;
+  double amountSaved;
 
   DailyDetailModel({
     required this.id,
@@ -15,5 +16,6 @@ class DailyDetailModel {
     required this.isAllDay,
     required this.startTime,
     required this.endTime,
+    this.amountSaved = 0.0,
   });
 }

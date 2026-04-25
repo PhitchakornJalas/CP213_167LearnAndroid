@@ -102,6 +102,7 @@ class _HomeViewState extends State<HomeView> {
     final dailyVM = Provider.of<DailyDetailViewModel>(context);
     
     return TableCalendar(
+      eventLoader: (day) => dailyVM.getEventsForDay(day),
       firstDay: DateTime.utc(2020, 1, 1),
       lastDay: DateTime.utc(2100, 12, 31),
       focusedDay: _focusedDay,
@@ -124,6 +125,7 @@ class _HomeViewState extends State<HomeView> {
         );
       },
       calendarBuilders: CalendarBuilders(
+        markerBuilder: (context, date, events) => const SizedBox(),
         defaultBuilder: (context, day, focusedDay) => _buildCell(day, dailyVM),
         todayBuilder: (context, day, focusedDay) => _buildCell(day, dailyVM, isToday: true),
         selectedBuilder: (context, day, focusedDay) => _buildCell(day, dailyVM, isSelected: true),
@@ -142,79 +144,86 @@ class _HomeViewState extends State<HomeView> {
 
   Widget _buildCell(DateTime day, DailyDetailViewModel vm, {bool isToday = false, bool isSelected = false, bool isOutside = false}) {
     final events = vm.getEventsForDay(day);
-    final totalSaving = vm.getTotalSavingAmount(day);
-
-    // ภายใน _buildCell ของ HomeView
-    String formatAmount(double amount) {
-      // แสดงเป็นเลขจำนวนเต็มได้เลยเพราะเรา Ceil มาจาก ViewModel แล้ว
-      return amount.toInt().toString();
-    }
+    final totalSavingToday = vm.getTotalSavingAmount(day);
 
     return Container(
-      margin: const EdgeInsets.all(2),
+      padding: const EdgeInsets.symmetric(horizontal: 2),
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300, width: 0.5),
         color: isSelected ? Colors.blue.withOpacity(0.1) : (isToday ? Colors.orange.withOpacity(0.1) : null),
+        border: Border.all(color: Colors.grey.shade200, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // แทรกวันที่กลับมา (ปรับขนาดเล็กและชิดซ้ายบน)
           Padding(
-            padding: const EdgeInsets.all(4),
-            child: Text('${day.day}', style: TextStyle(color: isOutside ? Colors.grey : Colors.black87, fontSize: 12)),
+            padding: const EdgeInsets.only(top: 2, left: 2),
+            child: Text('${day.day}', style: TextStyle(color: isOutside ? Colors.grey : Colors.black87, fontSize: 11)),
           ),
-
-          // 1. แสดงยอดออม (ถ้ามีเศษจะโชว์ทศนิยม เช่น 2.5 ฿)
-          if (totalSaving > 0)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
+          
+          // 1. ยอดออมสีแดง (ดันให้ห่างจากตัวเลขวัน)
+          if (totalSavingToday > 0)
+            FittedBox(
+              fit: BoxFit.scaleDown,
               child: Text(
-                'ออม: ${formatAmount(totalSaving)} ฿',
-                style: TextStyle(color: Colors.orange.shade900, fontSize: 8, fontWeight: FontWeight.bold),
+                'ออม: ${totalSavingToday.toInt()} บ.',
+                style: const TextStyle(color: Colors.red, fontSize: 9, fontWeight: FontWeight.bold),
               ),
             ),
 
-          // ส่วนที่ให้ Overflow Scroll ได้ในแนวตั้ง
+          const SizedBox(height: 2),
+
+          // 2. ส่วนที่ Scroll ได้ (Tags + ยอดสะสม)
           Expanded(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(), // ช่วยให้เลื่อนลื่นขึ้น
-              child: Column(
-                children: [
-                  for (var event in events) ...[
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
-                      padding: const EdgeInsets.all(2),
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: isOutside ? Colors.blueAccent.withOpacity(0.5) : Colors.blueAccent,
-                        borderRadius: BorderRadius.circular(2),
+            child: ScrollConfiguration(
+              behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false), // ซ่อนแถบ scroll ให้ดูคลีน
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                itemCount: events.length,
+                itemBuilder: (context, index) {
+                  final event = events[index];
+                  final isEventDay = isSameDay(event.startTime, day);
+                  final double budgetVal = double.tryParse(event.budget) ?? 0;
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // แถบสีฟ้า (ชื่อกิจกรรม)
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(top: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: isOutside ? Colors.blue.shade300.withOpacity(0.5) : Colors.blue.shade300,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          event.title,
+                          style: const TextStyle(fontSize: 9, color: Colors.white),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                      child: Text(
-                        event.title,
-                        style: const TextStyle(color: Colors.white, fontSize: 8),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    
-                    // แสดง 0 / budget ถ้ามีงบประมาณ
-                    if (event.budget.isNotEmpty && (double.tryParse(event.budget) ?? 0) > 0)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 2, right: 2, bottom: 2),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            '0 / ${event.budget} บ.',
-                            style: TextStyle(
-                              color: Colors.green.shade700, 
-                              fontSize: 8, 
-                              fontWeight: FontWeight.bold
+                      
+                      // ยอดสะสม (สีเขียว) - จะโชว์ติดกับ Tag ของตัวเองเพียงถ้ามีตั้งงบไว้
+                      if (isEventDay && budgetVal > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 2, top: 1, bottom: 2),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              '${event.amountSaved.toInt()} / ${budgetVal.toInt()} บ.',
+                              style: const TextStyle(
+                                color: Colors.green,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                  ],
-                ],
+                    ],
+                  );
+                },
               ),
             ),
           ),

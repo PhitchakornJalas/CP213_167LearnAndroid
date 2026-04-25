@@ -7,6 +7,9 @@ class DailyDetailViewModel extends ChangeNotifier {
   final Map<DateTime, List<DailyDetailModel>> _dailyDetails = {};
   Map<DateTime, List<DailyDetailModel>> get dailyDetails => _dailyDetails;
 
+  // เก็บประวัติ: วันไหน (DateTime) กิจกรรมไหน (String ID) ออมไปเท่าไหร่แล้ว
+  Map<DateTime, Map<String, double>> _dailySavingsRecords = {};
+
   String savedPromptPay = "";
   String savedAlias = "";
 
@@ -17,16 +20,59 @@ class DailyDetailViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  // โชว์ทั้งหมดกลับมา
   List<DailyDetailModel> getEventsForDay(DateTime date) {
     final dayOnly = DateTime(date.year, date.month, date.day);
     final events = _dailyDetails[dayOnly] ?? [];
-    // เรียงลำดับจากเช้าไปเย็น (All Day ขึ้นก่อน)
-    events.sort((a, b) {
+    
+    final allEvents = List<DailyDetailModel>.from(events);
+    allEvents.sort((a, b) {
       if (a.isAllDay) return -1;
       if (b.isAllDay) return 1;
       return a.startTime.compareTo(b.startTime);
     });
-    return events;
+    return allEvents;
+  }
+
+  // โชว์เฉพาะอันที่ "ยังไม่ออมแบบเต็ม" บนปฏิทิน
+  List<DailyDetailModel> getPendingEvents(DateTime day) {
+    final dayOnly = DateTime(day.year, day.month, day.day);
+    final events = _dailyDetails[dayOnly] ?? [];
+    
+    final incompleteEvents = events.where((e) {
+      double budgetVal = double.tryParse(e.budget) ?? 0;
+      return e.amountSaved < budgetVal;
+    }).toList();
+
+    incompleteEvents.sort((a, b) {
+      if (a.isAllDay) return -1;
+      if (b.isAllDay) return 1;
+      return a.startTime.compareTo(b.startTime);
+    });
+    return incompleteEvents;
+  }
+
+  void confirmSaving(DateTime currentDay, String eventId, double amount) {
+    final day = DateTime(currentDay.year, currentDay.month, currentDay.day);
+    
+    // 1. บันทึกว่าวันนี้กิจกรรมนี้ออมแล้ว
+    if (!_dailySavingsRecords.containsKey(day)) _dailySavingsRecords[day] = {};
+    _dailySavingsRecords[day]![eventId] = amount;
+
+    // 2. อัปเดตยอดสะสมรวมของ Event นั้นๆ
+    for (var list in _dailyDetails.values) {
+      for (var event in list) {
+        if (event.id == eventId) {
+          event.amountSaved += amount;
+        }
+      }
+    }
+    notifyListeners();
+  }
+
+  bool isEventSavedToday(DateTime date, String eventId) {
+    final day = DateTime(date.year, date.month, date.day);
+    return _dailySavingsRecords[day]?.containsKey(eventId) ?? false;
   }
 
   // เช็คว่าเวลาทับกันหรือไม่
@@ -67,25 +113,25 @@ class DailyDetailViewModel extends ChangeNotifier {
 
     _dailyDetails.forEach((targetDate, events) {
       for (var detail in events) {
-        if (detail.savingStartDate != null && detail.budget.isNotEmpty) {
-          final start = DateTime(detail.savingStartDate!.year, detail.savingStartDate!.month, detail.savingStartDate!.day);
-          final eventDay = DateTime(targetDate.year, targetDate.month, targetDate.day);
+        if (detail.savingStartDate == null || detail.budget.isEmpty) continue;
 
-          if ((calendarDay.isAtSameMomentAs(start) || calendarDay.isAfter(start)) &&
-              calendarDay.isBefore(eventDay)) {
-            
-            double budgetVal = double.tryParse(detail.budget) ?? 0;
-            int totalSavingDays = eventDay.difference(start).inDays;
-            
-            if (totalSavingDays > 0) {
-              // แก้ไข: ปัดเศษขึ้น (Ceil) ต่อกิจกรรมทันที
-              total += (budgetVal / totalSavingDays).ceilToDouble();
-            }
+        final start = DateTime(detail.savingStartDate!.year, detail.savingStartDate!.month, detail.savingStartDate!.day);
+        final eventDay = DateTime(targetDate.year, targetDate.month, targetDate.day);
+
+        if ((calendarDay.isAtSameMomentAs(start) || calendarDay.isAfter(start)) && calendarDay.isBefore(eventDay)) {
+          double budgetVal = double.tryParse(detail.budget) ?? 0;
+          int totalDays = eventDay.difference(start).inDays;
+          
+          if (totalDays > 0) {
+            double dailyAmount = (budgetVal / totalDays).ceilToDouble();
+            // หักลบยอดที่กดออมไปแล้วในวันนี้
+            double alreadySavedToday = _dailySavingsRecords[calendarDay]?[detail.id] ?? 0;
+            total += (dailyAmount - alreadySavedToday);
           }
         }
       }
     });
-    return total;
+    return total > 0 ? total : 0;
   }
 
   List<Map<String, dynamic>> getSavingsBreakdownForDay(DateTime date) {
@@ -110,12 +156,15 @@ class DailyDetailViewModel extends ChangeNotifier {
               double amountPerEvent = (budgetVal / totalSavingDays).ceilToDouble();
               
               breakdown.add({
+                'id': detail.id,
                 'title': detail.title,
                 'amount': amountPerEvent,
                 'targetDate': targetDate, // วันที่จะจัดกิจกรรมนี้
-                'isAllDay': detail.isAllDay, // เพิ่มค่านี้
-                'startTime': detail.startTime, // เพิ่มค่านี้
-                'endTime': detail.endTime, // เพิ่มค่านี้
+                'isAllDay': detail.isAllDay, 
+                'startTime': detail.startTime, 
+                'endTime': detail.endTime, 
+                'amountSaved': detail.amountSaved,
+                'budget': double.tryParse(detail.budget) ?? 0,
               });
             }
           }
