@@ -58,14 +58,59 @@ class DailyDetailViewModel extends ChangeNotifier {
       for (var detail in events) {
         if (detail.savingStartDate != null && detail.budget.isNotEmpty) {
           final start = DateTime(detail.savingStartDate!.year, detail.savingStartDate!.month, detail.savingStartDate!.day);
-          if ((calendarDay.isAtSameMomentAs(start) || calendarDay.isAfter(start)) && calendarDay.isBefore(targetDate)) {
+          final eventDay = DateTime(targetDate.year, targetDate.month, targetDate.day);
+
+          if ((calendarDay.isAtSameMomentAs(start) || calendarDay.isAfter(start)) &&
+              calendarDay.isBefore(eventDay)) {
+            
             double budgetVal = double.tryParse(detail.budget) ?? 0;
-            int totalDays = targetDate.difference(start).inDays;
-            if (totalDays > 0) total += budgetVal / totalDays;
+            int totalSavingDays = eventDay.difference(start).inDays;
+            
+            if (totalSavingDays > 0) {
+              // แก้ไข: ปัดเศษขึ้น (Ceil) ต่อกิจกรรมทันที
+              total += (budgetVal / totalSavingDays).ceilToDouble();
+            }
           }
         }
       }
     });
     return total;
+  }
+
+  List<Map<String, dynamic>> getSavingsBreakdownForDay(DateTime date) {
+    List<Map<String, dynamic>> breakdown = [];
+    final calendarDay = DateTime(date.year, date.month, date.day);
+
+    _dailyDetails.forEach((targetDate, events) {
+      for (var detail in events) {
+        if (detail.savingStartDate != null && detail.budget.isNotEmpty) {
+          final start = DateTime(detail.savingStartDate!.year, detail.savingStartDate!.month, detail.savingStartDate!.day);
+          final eventDay = DateTime(targetDate.year, targetDate.month, targetDate.day);
+
+          // ตรวจสอบว่าเป็นช่วงวันที่ต้องออมของกิจกรรมนี้หรือไม่
+          if ((calendarDay.isAtSameMomentAs(start) || calendarDay.isAfter(start)) &&
+              calendarDay.isBefore(eventDay)) {
+            
+            double budgetVal = double.tryParse(detail.budget) ?? 0;
+            int totalSavingDays = eventDay.difference(start).inDays;
+            
+            if (totalSavingDays > 0) {
+              // ปัดเศษขึ้นตามที่ตกลงกันไว้
+              double amountPerEvent = (budgetVal / totalSavingDays).ceilToDouble();
+              
+              breakdown.add({
+                'title': detail.title,
+                'amount': amountPerEvent,
+                'targetDate': targetDate, // วันที่จะจัดกิจกรรมนี้
+                'isAllDay': detail.isAllDay, // เพิ่มค่านี้
+                'startTime': detail.startTime, // เพิ่มค่านี้
+                'endTime': detail.endTime, // เพิ่มค่านี้
+              });
+            }
+          }
+        }
+      }
+    });
+    return breakdown;
   }
 }

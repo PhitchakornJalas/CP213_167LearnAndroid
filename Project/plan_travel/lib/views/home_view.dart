@@ -45,7 +45,7 @@ class _HomeViewState extends State<HomeView> {
         lastDay: DateTime.utc(2100, 12, 31),
         focusedDay: _focusedDay,
         calendarFormat: _calendarFormat,
-        rowHeight: 85,
+        rowHeight: 120,
         selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
         headerStyle: const HeaderStyle(
           formatButtonVisible: false,
@@ -83,9 +83,10 @@ class _HomeViewState extends State<HomeView> {
     final events = vm.getEventsForDay(day);
     final totalSaving = vm.getTotalSavingAmount(day);
 
-    // ฟังก์ชันช่วยจัดรูปแบบตัวเลข: ถ้ามีเศษโชว์ .5 ถ้าไม่มีโชว์เลขกลมๆ
+    // ภายใน _buildCell ของ HomeView
     String formatAmount(double amount) {
-      return amount % 1 == 0 ? amount.toInt().toString() : amount.toStringAsFixed(1);
+      // แสดงเป็นเลขจำนวนเต็มได้เลยเพราะเรา Ceil มาจาก ViewModel แล้ว
+      return amount.toInt().toString();
     }
 
     return Container(
@@ -112,22 +113,50 @@ class _HomeViewState extends State<HomeView> {
               ),
             ),
 
-          for (var event in events)
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
-              padding: const EdgeInsets.all(2),
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: isOutside ? Colors.blueAccent.withOpacity(0.5) : Colors.blueAccent,
-                borderRadius: BorderRadius.circular(2),
-              ),
-              child: Text(
-                event.title, // แสดงแค่ชื่อกิจกรรม ไม่โชว์เวลา
-                style: const TextStyle(color: Colors.white, fontSize: 8),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+          // ส่วนที่ให้ Overflow Scroll ได้ในแนวตั้ง
+          Expanded(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(), // ช่วยให้เลื่อนลื่นขึ้น
+              child: Column(
+                children: [
+                  for (var event in events) ...[
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+                      padding: const EdgeInsets.all(2),
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: isOutside ? Colors.blueAccent.withOpacity(0.5) : Colors.blueAccent,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                      child: Text(
+                        event.title,
+                        style: const TextStyle(color: Colors.white, fontSize: 8),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    
+                    // แสดง 0 / budget ถ้ามีงบประมาณ
+                    if (event.budget.isNotEmpty && (double.tryParse(event.budget) ?? 0) > 0)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 2, right: 2, bottom: 2),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            '0 / ${event.budget} บ.',
+                            style: TextStyle(
+                              color: Colors.green.shade700, 
+                              fontSize: 8, 
+                              fontWeight: FontWeight.bold
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ],
               ),
             ),
+          ),
         ],
       ),
     );

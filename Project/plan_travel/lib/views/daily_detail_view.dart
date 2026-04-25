@@ -34,9 +34,16 @@ class _DailyDetailViewState extends State<DailyDetailView> {
   @override
   void initState() {
     super.initState();
-    // ตั้งค่าเวลาเริ่มต้น: ชั่วโมงถัดไป และ สิ้นสุดคืออีก 1 ชั่วโมงถัดไป
     final now = DateTime.now();
-    _startDateTime = DateTime(widget.selectedDay.year, widget.selectedDay.month, widget.selectedDay.day, now.hour + 1, 0);
+    
+    // 1. ตั้งค่าสำหรับกรณี "กำหนดเวลา" (Default: ชั่วโมงถัดไป)
+    _startDateTime = DateTime(
+      widget.selectedDay.year, 
+      widget.selectedDay.month, 
+      widget.selectedDay.day, 
+      now.hour + 1, 
+      0
+    );
     _endDateTime = _startDateTime.add(const Duration(hours: 1));
 
     final detail = widget.existingEvent;
@@ -48,6 +55,13 @@ class _DailyDetailViewState extends State<DailyDetailView> {
       _isAllDay = detail.isAllDay;
       _startDateTime = detail.startTime;
       _endDateTime = detail.endTime;
+    } else {
+      // 2. ถ้าเป็นการสร้างใหม่ และเลือก "ตลอดวัน" (Default)
+      // ให้ Start และ End เป็นวันที่เดียวกัน (00:00 - 23:59 หรือแค่วันเดียวกัน)
+      if (_isAllDay) {
+        _startDateTime = DateTime(widget.selectedDay.year, widget.selectedDay.month, widget.selectedDay.day);
+        _endDateTime = DateTime(widget.selectedDay.year, widget.selectedDay.month, widget.selectedDay.day);
+      }
     }
 
     if (detail != null && detail.savingStartDate != null) {
@@ -96,12 +110,26 @@ class _DailyDetailViewState extends State<DailyDetailView> {
                         ? CupertinoDatePickerMode.date 
                         : CupertinoDatePickerMode.dateAndTime,
                     initialDateTime: isStart ? _startDateTime : _endDateTime,
+                    // กำหนด Minimum Date สำหรับช่อง "สิ้นสุด" ให้เริ่มได้ไม่ก่อน "เวลาเริ่ม"
+                    minimumDate: isStart ? null : _startDateTime, 
                     onDateTimeChanged: (DateTime newDateTime) {
                       setState(() {
                         if (isStart) {
                           _startDateTime = newDateTime;
+                          // LOGIC: ถ้าเปลี่ยนเวลาเริ่มแล้วดันไป "หลัง" เวลาสิ้นสุดที่มีอยู่
+                          // ให้ดีดเวลาสิ้นสุดตามมาเป็น +1 ชั่วโมงอัตโนมัติ
+                          if (_startDateTime.isAfter(_endDateTime) || 
+                              _startDateTime.isAtSameMomentAs(_endDateTime)) {
+                            _endDateTime = _startDateTime.add(const Duration(hours: 1));
+                          }
                         } else {
-                          _endDateTime = newDateTime;
+                          // สำหรับช่องสิ้นสุด CupertinoDatePicker จะล็อคที่ minimumDate ให้อยู่แล้ว
+                          // แต่ใส่กันเหนียวไว้อีกชั้น
+                          if (newDateTime.isBefore(_startDateTime)) {
+                            _endDateTime = _startDateTime;
+                          } else {
+                            _endDateTime = newDateTime;
+                          }
                         }
                       });
                     },
@@ -149,7 +177,21 @@ class _DailyDetailViewState extends State<DailyDetailView> {
             SwitchListTile(
               title: const Text("ตลอดวัน"),
               value: _isAllDay,
-              onChanged: isLocked ? null : (v) => setState(() => _isAllDay = v),
+              onChanged: isLocked ? null : (v) {
+                setState(() {
+                  _isAllDay = v;
+                  if (_isAllDay) {
+                    // ถ้าเปิด "ตลอดวัน" ให้รีเซ็ต Start/End กลับมาเป็นวันเดียวกันที่เลือกจากปฏิทิน
+                    _startDateTime = DateTime(widget.selectedDay.year, widget.selectedDay.month, widget.selectedDay.day);
+                    _endDateTime = DateTime(widget.selectedDay.year, widget.selectedDay.month, widget.selectedDay.day);
+                  } else {
+                    // ถ้าปิด "ตลอดวัน" ค่อยกลับไปใช้ Logic ชั่วโมงปัจจุบัน + 1
+                    final now = DateTime.now();
+                    _startDateTime = DateTime(widget.selectedDay.year, widget.selectedDay.month, widget.selectedDay.day, now.hour + 1, 0);
+                    _endDateTime = _startDateTime.add(const Duration(hours: 1));
+                  }
+                });
+              },
             ),
 
             // 3. แสดงวัน/เวลา เริ่มต้น - สิ้นสุด
