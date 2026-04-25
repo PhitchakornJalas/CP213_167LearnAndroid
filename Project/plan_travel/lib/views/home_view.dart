@@ -3,6 +3,7 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/daily_detail_viewmodel.dart';
 import 'event_list_view.dart';
+import 'settings_view.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -14,16 +15,31 @@ class _HomeViewState extends State<HomeView> {
   CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
+  
+  // 1. เพิ่มตัวแปรสำหรับเก็บ Index ของเมนูที่เลือก
+  int _selectedIndex = 0;
+
+  // 2. ฟังก์ชันสำหรับจัดการการกดเปลี่ยนเมนู
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final dailyVM = Provider.of<DailyDetailViewModel>(context);
+    final List<Widget> _pages = [
+      _buildCalendarPage(context), 
+      const Center(child: Text("หน้าสรุปรายการ")), 
+      const Center(child: Text("หน้าวิเคราะห์ผล")), 
+      const SettingsView(), // เรียกใช้จากไฟล์แยก สะอาดตามาก!
+    ];
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Plan Travel - ปฏิทิน'),
+        title: Text(_selectedIndex == 0 ? 'Plan Travel' : 'ตั้งค่า'),
         backgroundColor: Colors.blueAccent,
-        actions: [
+        actions: _selectedIndex == 0 ? [
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
             child: TextButton(
@@ -38,36 +54,70 @@ class _HomeViewState extends State<HomeView> {
               ),
             ),
           ),
+        ] : null,
+      ),
+      body: _pages[_selectedIndex],
+      
+      // 3. เพิ่ม Bottom Navigation Bar (โครง Dummy 4 เมนู)
+      bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed, // บังคับให้โชว์ Label ทุกอัน
+        backgroundColor: Colors.white,
+        selectedItemColor: Colors.blueAccent,
+        unselectedItemColor: Colors.grey,
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.calendar_month),
+            label: 'ปฏิทิน',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.list_alt),
+            label: 'รายการ',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.analytics),
+            label: 'สรุปผล',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings),
+            label: 'ตั้งค่า',
+          ),
         ],
       ),
-      body: TableCalendar(
-        firstDay: DateTime.utc(2020, 1, 1),
-        lastDay: DateTime.utc(2100, 12, 31),
-        focusedDay: _focusedDay,
-        calendarFormat: _calendarFormat,
-        rowHeight: 120,
-        selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-        headerStyle: const HeaderStyle(
-          formatButtonVisible: false,
-          titleCentered: true,
-        ),
-        onDaySelected: (selectedDay, focusedDay) {
-          setState(() {
-            _selectedDay = selectedDay;
-            _focusedDay = focusedDay;
-          });
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => EventListView(selectedDay: selectedDay)),
-          );
-        },
-        calendarBuilders: CalendarBuilders(
-          defaultBuilder: (context, day, focusedDay) => _buildCell(day, dailyVM),
-          todayBuilder: (context, day, focusedDay) => _buildCell(day, dailyVM, isToday: true),
-          selectedBuilder: (context, day, focusedDay) => _buildCell(day, dailyVM, isSelected: true),
-          outsideBuilder: (context, day, focusedDay) => _buildCell(day, dailyVM, isOutside: true),
-          holidayBuilder: (context, day, focusedDay) => _buildCell(day, dailyVM),
-        ),
+    );
+  }
+
+  Widget _buildCalendarPage(BuildContext context) {
+    final dailyVM = Provider.of<DailyDetailViewModel>(context);
+    
+    return TableCalendar(
+      firstDay: DateTime.utc(2020, 1, 1),
+      lastDay: DateTime.utc(2100, 12, 31),
+      focusedDay: _focusedDay,
+      calendarFormat: _calendarFormat,
+      rowHeight: 120,
+      selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+      headerStyle: const HeaderStyle(
+        formatButtonVisible: false,
+        titleCentered: true,
+      ),
+      onDaySelected: (selectedDay, focusedDay) {
+        setState(() {
+          _selectedDay = selectedDay;
+          _focusedDay = focusedDay;
+        });
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => EventListView(selectedDay: selectedDay)),
+        );
+      },
+      calendarBuilders: CalendarBuilders(
+        defaultBuilder: (context, day, focusedDay) => _buildCell(day, dailyVM),
+        todayBuilder: (context, day, focusedDay) => _buildCell(day, dailyVM, isToday: true),
+        selectedBuilder: (context, day, focusedDay) => _buildCell(day, dailyVM, isSelected: true),
+        outsideBuilder: (context, day, focusedDay) => _buildCell(day, dailyVM, isOutside: true),
+        holidayBuilder: (context, day, focusedDay) => _buildCell(day, dailyVM),
       ),
     );
   }
