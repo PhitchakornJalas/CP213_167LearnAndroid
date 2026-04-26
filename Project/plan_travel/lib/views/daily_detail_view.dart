@@ -303,9 +303,11 @@ class _DailyDetailViewState extends State<DailyDetailView> {
                     }
 
                     DateTime? savingStart;
-                    if (widget.existingEvent != null) {
+                    if (widget.existingEvent != null && widget.existingEvent!.savingStartDate != null) {
+                      // ถ้าเป็นการแก้ไขและมีวันเริ่มออมเดิมอยู่แล้ว ให้ใช้ค่าเดิม (เพื่อไม่ให้ยอดออมต่อวันเปลี่ยน)
                       savingStart = widget.existingEvent!.savingStartDate;
                     } else if (hasBudget) {
+                      // ถ้าสร้างใหม่ หรือเป็นการแก้ไขกิจกรรมที่เคยไม่มีงบ/ไม่มีแผนออมมาก่อน ให้คำนวณใหม่ตามแผนที่เลือก
                       savingStart = _calculateSavingStartDate();
                     }
 
