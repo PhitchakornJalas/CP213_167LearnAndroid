@@ -165,6 +165,7 @@ class DailyDetailViewModel extends ChangeNotifier {
                 'endTime': detail.endTime, 
                 'amountSaved': detail.amountSaved,
                 'budget': double.tryParse(detail.budget) ?? 0,
+                'savingStartDate': detail.savingStartDate,
               });
             }
           }

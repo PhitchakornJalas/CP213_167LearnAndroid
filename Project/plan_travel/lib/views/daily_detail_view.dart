@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/daily_detail_viewmodel.dart';
 import '../models/daily_detail_model.dart';
+import 'daily_detail_info_view.dart';
 
 class DailyDetailView extends StatefulWidget {
   final DateTime selectedDay;
@@ -16,8 +17,10 @@ class DailyDetailView extends StatefulWidget {
 }
 
 class _DailyDetailViewState extends State<DailyDetailView> {
+  bool _isSaved = false;
   late TextEditingController _titleController;
   late TextEditingController _budgetController;
+  DailyDetailModel? _currentEvent;
   
   // แยก Controller ของใครของมันเพื่อให้เลขไม่ทับกัน
   final TextEditingController _dayController = TextEditingController(text: '1');
@@ -84,6 +87,11 @@ class _DailyDetailViewState extends State<DailyDetailView> {
         _selectedType = 'day'; _customValue = diff;
         _dayController.text = _customValue.toString();
       }
+    }
+
+    if (widget.existingEvent != null) {
+      _currentEvent = widget.existingEvent;
+      _isSaved = true;
     }
   }
 
@@ -160,11 +168,22 @@ class _DailyDetailViewState extends State<DailyDetailView> {
                      (double.tryParse(_budgetController.text) ?? 0) > 0;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('รายละเอียดรายวัน')),
+      appBar: AppBar(
+        title: Text(_isSaved ? 'รายละเอียดกิจกรรม' : 'รายละเอียดรายวัน'),
+        actions: [
+          if (_isSaved && !isLocked)
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: () => setState(() => _isSaved = false),
+            )
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
+        child: _isSaved && _currentEvent != null
+          ? DailyDetailInfoView(event: _currentEvent!)
+          : Column(
+              children: [
             // 1. ชื่อกิจกรรม
             TextField(
               controller: _titleController,
@@ -286,19 +305,23 @@ class _DailyDetailViewState extends State<DailyDetailView> {
 
                     String eventId = widget.existingEvent?.id ?? DateTime.now().millisecondsSinceEpoch.toString();
 
-                    vm.addOrUpdateEvent(
-                      selectedDayOnly, 
-                      DailyDetailModel(
-                        id: eventId,
-                        title: _titleController.text,
-                        budget: _budgetController.text,
-                        savingStartDate: savingStart,
-                        isAllDay: _isAllDay,
-                        startTime: _startDateTime,
-                        endTime: _endDateTime,
-                      )
+                    final newEvent = DailyDetailModel(
+                      id: eventId,
+                      title: _titleController.text,
+                      budget: _budgetController.text,
+                      savingStartDate: savingStart,
+                      isAllDay: _isAllDay,
+                      startTime: _startDateTime,
+                      endTime: _endDateTime,
+                      amountSaved: widget.existingEvent?.amountSaved ?? 0,
                     );
-                    Navigator.pop(context);
+
+                    vm.addOrUpdateEvent(selectedDayOnly, newEvent);
+
+                    setState(() {
+                      _currentEvent = newEvent;
+                      _isSaved = true;
+                    });
                   },
                   child: const Text('บันทึกรายละเอียด'),
                 ),

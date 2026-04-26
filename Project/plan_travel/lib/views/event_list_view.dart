@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/daily_detail_viewmodel.dart';
+import '../models/daily_detail_model.dart';
 import 'daily_detail_view.dart';
 import 'qr_payment_view.dart';
 
@@ -35,79 +36,101 @@ class EventListView extends StatelessWidget {
                   final item = savings[index];
                   final eventId = item['id'];
                   
-                  // สร้างข้อความเวลา
                   String timeInfo = item['isAllDay'] 
                       ? "ทั้งวัน" 
                       : "${item['startTime'].hour}:00 - ${item['endTime'].hour}:00";
 
-                  // เช็คจาก ViewModel ว่าวันนี้ กิจกรรม ID นี้ ออมไปหรือยัง
                   final bool isSavedToday = vm.isEventSavedToday(selectedDay, eventId);
 
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: Card(
-                      elevation: 3,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: IntrinsicHeight(
-                          child: Row(
-                            children: [
-                              const Icon(Icons.savings, color: Colors.orange, size: 35),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                    child: InkWell(
+                      onTap: () {
+                        final eventModel = DailyDetailModel(
+                          id: item['id'],
+                          title: item['title'],
+                          budget: item['budget'].toString(),
+                          isAllDay: item['isAllDay'],
+                          startTime: item['startTime'],
+                          endTime: item['endTime'],
+                          amountSaved: item['amountSaved'] ?? 0.0,
+                          savingStartDate: item['savingStartDate'],
+                        );
+
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => DailyDetailView(
+                              selectedDay: item['targetDate'], 
+                              existingEvent: eventModel,
+                            ),
+                          ),
+                        );
+                      },
+                      child: Card(
+                        elevation: 3,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: IntrinsicHeight(
+                            child: Row(
+                              children: [
+                                const Icon(Icons.savings, color: Colors.orange, size: 35),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text("ออมเพื่อ: ${item['title']}", 
+                                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                      const SizedBox(height: 4),
+                                      Text("เป้าหมาย: ${item['targetDate'].day}/${item['targetDate'].month} ($timeInfo)",
+                                          style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Text("ออมเพื่อ: ${item['title']}", 
-                                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                                    const SizedBox(height: 4),
-                                    Text("เป้าหมาย: ${item['targetDate'].day}/${item['targetDate'].month} ($timeInfo)",
-                                        style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                                    Text("${item['amount'].toInt()} ฿", 
+                                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 8),
+                                    ElevatedButton(
+                                      onPressed: isSavedToday 
+                                          ? null 
+                                          : () async {
+                                              await vm.loadBankInfo(); 
+                                              if (vm.savedPromptPay.isEmpty) {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  const SnackBar(content: Text("กรุณาตั้งค่าบัญชีธนาคารก่อนออมเงิน"))
+                                                );
+                                                return;
+                                              }
+                                              Navigator.push(context, MaterialPageRoute(
+                                                builder: (context) => QRPaymentView(
+                                                  eventId: item['id'],
+                                                  amount: item['amount'],
+                                                  title: "ออมเพื่อ ${item['title']}",
+                                                  promptPayId: vm.savedPromptPay,
+                                                  accountName: vm.savedAlias,
+                                                  currentDay: selectedDay,
+                                                  useSlipVerification: false,
+                                                )
+                                              ));
+                                            }, 
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: isSavedToday ? Colors.grey.shade300 : Colors.orange.shade100,
+                                        foregroundColor: isSavedToday ? Colors.grey : Colors.orange.shade900,
+                                        elevation: isSavedToday ? 0 : 2,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                      ),
+                                      child: Text(isSavedToday ? "ออมแล้ว" : "ออมเลย"),
+                                    ),
                                   ],
                                 ),
-                              ),
-                              const SizedBox(width: 10),
-                              Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text("${item['amount'].toInt()} ฿", 
-                                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                                  const SizedBox(height: 8),
-                                  ElevatedButton(
-                                    onPressed: isSavedToday 
-                                        ? null 
-                                        : () async {
-                                            await vm.loadBankInfo(); 
-                                            if (vm.savedPromptPay.isEmpty) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                const SnackBar(content: Text("กรุณาตั้งค่าบัญชีธนาคารก่อนออมเงิน"))
-                                              );
-                                              return;
-                                            }
-                                            Navigator.push(context, MaterialPageRoute(
-                                              builder: (context) => QRPaymentView(
-                                                eventId: item['id'],
-                                                amount: item['amount'],
-                                                title: "ออมเพื่อ ${item['title']}",
-                                                promptPayId: vm.savedPromptPay,
-                                                accountName: vm.savedAlias,
-                                                currentDay: selectedDay,
-                                                useSlipVerification: false,
-                                              )
-                                            ));
-                                          }, 
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: isSavedToday ? Colors.grey.shade300 : Colors.orange.shade100,
-                                      foregroundColor: isSavedToday ? Colors.grey : Colors.orange.shade900,
-                                      elevation: isSavedToday ? 0 : 2,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                    ),
-                                    child: Text(isSavedToday ? "ออมแล้ว" : "ออมเลย"),
-                                  ),
-                                ],
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
