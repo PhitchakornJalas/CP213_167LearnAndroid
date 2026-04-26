@@ -19,7 +19,7 @@ class DailyDetailView extends StatefulWidget {
 class _DailyDetailViewState extends State<DailyDetailView> {
   bool _isSaved = false;
   late TextEditingController _titleController;
-  late TextEditingController _budgetController;
+  List<BudgetItem> _budgetList = [BudgetItem(label: '', amount: 0)];
   DailyDetailModel? _currentEvent;
   
   // แยก Controller ของใครของมันเพื่อให้เลขไม่ทับกัน
@@ -28,7 +28,7 @@ class _DailyDetailViewState extends State<DailyDetailView> {
   final TextEditingController _monthController = TextEditingController(text: '1');
   final TextEditingController _yearController = TextEditingController(text: '1');
 
-  String _selectedType = 'today';
+  String _selectedType = '';
   int _customValue = 1;
   bool _isAllDay = true;
   late DateTime _startDateTime;
@@ -52,7 +52,12 @@ class _DailyDetailViewState extends State<DailyDetailView> {
     final detail = widget.existingEvent;
     
     _titleController = TextEditingController(text: detail?.title ?? '');
-    _budgetController = TextEditingController(text: detail?.budget ?? '');
+    
+    if (detail != null) {
+      _budgetList = List<BudgetItem>.from(detail.budgetItems.map((e) => BudgetItem(label: e.label, amount: e.amount)));
+    } else {
+      _budgetList = [BudgetItem(label: '', amount: 0)];
+    }
 
     if (detail != null) {
       _isAllDay = detail.isAllDay;
@@ -164,8 +169,8 @@ class _DailyDetailViewState extends State<DailyDetailView> {
     final isLocked = selectedDayOnly.isBefore(today) || selectedDayOnly.isAtSameMomentAs(today);
 
     // ตรวจสอบว่ามีการกรอกงบประมาณหรือไม่
-    bool hasBudget = _budgetController.text.trim().isNotEmpty && 
-                     (double.tryParse(_budgetController.text) ?? 0) > 0;
+    double totalBudget = _budgetList.fold(0.0, (sum, item) => sum + item.amount);
+    bool hasBudget = totalBudget > 0;
 
     return Scaffold(
       appBar: AppBar(
@@ -232,32 +237,37 @@ class _DailyDetailViewState extends State<DailyDetailView> {
             const SizedBox(height: 20),
             
             // 4. งบประมาณ
-            TextField(
-              controller: _budgetController,
-              enabled: !isLocked,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: const InputDecoration(labelText: 'งบประมาณ (บาท)', border: OutlineInputBorder()),
-              onChanged: (v) => setState(() {}), // สั่งให้ UI rebuild เพื่อเช็ค hasBudget
-            ),
+            _buildBudgetSection(isLocked),
             
             // ถ้ามีงบประมาณ ถึงจะโชว์ส่วนเลือกแผนการออมเงิน
             if (hasBudget) ...[
               const SizedBox(height: 20),
-              const Align(
-                alignment: Alignment.centerLeft, 
-                child: Text("แผนการออมเงิน", style: TextStyle(fontWeight: FontWeight.bold))
-              ),
-              RadioListTile<String>(
-                title: const Text("ตั้งแต่วันนี้"),
-                value: 'today', 
-                groupValue: _selectedType,
-                onChanged: isLocked ? null : (v) => setState(() => _selectedType = v!),
-              ),
-              _buildPlanRadio("วัน", 'day', 1, _dayController, isLocked),
-              _buildPlanRadio("สัปดาห์", 'week', 7, _weekController, isLocked),
-              _buildPlanRadio("เดือน", 'month', 30, _monthController, isLocked),
-              _buildPlanRadio("ปี", 'year', 365, _yearController, isLocked),
+              
+              if (widget.existingEvent == null || widget.existingEvent!.savingStartDate == null) ...[
+                const Align(
+                  alignment: Alignment.centerLeft, 
+                  child: Text("แผนการออมเงิน", style: TextStyle(fontWeight: FontWeight.bold))
+                ),
+                RadioListTile<String>(
+                  title: Row(
+                    children: [
+                      const Text("ตั้งแต่วันนี้"),
+                      if (_selectedType == 'today')
+                        Text(_formatDurationText(_calculateTotalDays()), 
+                             style: const TextStyle(color: Colors.blue, fontSize: 13, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  value: 'today', 
+                  groupValue: _selectedType,
+                  onChanged: isLocked ? null : (v) => setState(() => _selectedType = v!),
+                ),
+                _buildPlanRadio("วัน", 'day', 1, _dayController, isLocked),
+                _buildPlanRadio("สัปดาห์", 'week', 7, _weekController, isLocked),
+                _buildPlanRadio("เดือน", 'month', 30, _monthController, isLocked),
+                _buildPlanRadio("ปี", 'year', 365, _yearController, isLocked),
+              ] else ...[
+                _buildEditModeCountdown(),
+              ],
             ],
 
             const SizedBox(height: 30),
@@ -293,14 +303,10 @@ class _DailyDetailViewState extends State<DailyDetailView> {
                     }
 
                     DateTime? savingStart;
-                    // ถ้ามีงบ ถึงจะส่งค่าวันเริ่มออมไปคำนวณ
-                    if (hasBudget) {
-                      if (_selectedType == 'today') {
-                        savingStart = today;
-                      } else {
-                        int mult = _selectedType == 'year' ? 365 : (_selectedType == 'week' ? 7 : (_selectedType == 'month' ? 30 : 1));
-                        savingStart = selectedDayOnly.subtract(Duration(days: _customValue * mult));
-                      }
+                    if (widget.existingEvent != null) {
+                      savingStart = widget.existingEvent!.savingStartDate;
+                    } else if (hasBudget) {
+                      savingStart = _calculateSavingStartDate();
                     }
 
                     String eventId = widget.existingEvent?.id ?? DateTime.now().millisecondsSinceEpoch.toString();
@@ -308,7 +314,7 @@ class _DailyDetailViewState extends State<DailyDetailView> {
                     final newEvent = DailyDetailModel(
                       id: eventId,
                       title: _titleController.text,
-                      budget: _budgetController.text,
+                      budgetItems: _budgetList,
                       savingStartDate: savingStart,
                       isAllDay: _isAllDay,
                       startTime: _startDateTime,
@@ -316,7 +322,7 @@ class _DailyDetailViewState extends State<DailyDetailView> {
                       amountSaved: widget.existingEvent?.amountSaved ?? 0,
                     );
 
-                    vm.addOrUpdateEvent(selectedDayOnly, newEvent);
+                    vm.addOrUpdateEvent(newEvent);
 
                     setState(() {
                       _currentEvent = newEvent;
@@ -330,6 +336,147 @@ class _DailyDetailViewState extends State<DailyDetailView> {
               const Text("* วันนี้หรือย้อนหลังไม่สามารถลงกิจกรรมได้", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildBudgetSection(bool isLocked) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("รายละเอียดงบประมาณ", style: TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 10),
+        ..._budgetList.asMap().entries.map((entry) {
+          int index = entry.key;
+          BudgetItem item = entry.value;
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    controller: TextEditingController(text: item.label)..selection = TextSelection.collapsed(offset: item.label.length),
+                    enabled: !isLocked,
+                    decoration: const InputDecoration(hintText: "เช่น ค่าข้าว", border: OutlineInputBorder()),
+                    onChanged: (val) => item.label = val,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 1,
+                  child: TextField(
+                    controller: TextEditingController(text: item.amount == 0 ? '' : item.amount.toInt().toString())..selection = TextSelection.collapsed(offset: (item.amount == 0 ? '' : item.amount.toInt().toString()).length),
+                    enabled: !isLocked,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: const InputDecoration(hintText: "บาท", border: OutlineInputBorder()),
+                    onChanged: (val) {
+                      setState(() {
+                        item.amount = double.tryParse(val) ?? 0;
+                        
+                        // 1. ถ้าลบตัวเลขจนว่าง ให้ Reset แผนการออม (เช็คจากยอดรวม)
+                        double total = _budgetList.fold(0, (sum, b) => sum + b.amount);
+                        if (total == 0) {
+                          _selectedType = ''; 
+                          _customValue = 1;
+                          _dayController.text = '1';
+                          _weekController.text = '1';
+                          _monthController.text = '1';
+                          _yearController.text = '1';
+                        } else {
+                          // 2. ถ้าเริ่มพิมพ์ตัวเลข และยังไม่มีการเลือกแผน ให้ตั้งเป็น 'today' เป็นค่าเริ่มต้น
+                          if (_selectedType.isEmpty) {
+                            _selectedType = 'today';
+                          }
+                        }
+                      });
+                    },
+                  ),
+                ),
+                if (!isLocked)
+                  IconButton(
+                    icon: const Icon(Icons.remove_circle, color: Colors.red),
+                    onPressed: () {
+                      setState(() {
+                        if (_budgetList.length > 1) _budgetList.removeAt(index);
+                      });
+                    },
+                  ),
+              ],
+            ),
+          );
+        }).toList(),
+        if (!isLocked)
+          TextButton.icon(
+            onPressed: () => setState(() => _budgetList.add(BudgetItem(label: '', amount: 0))),
+            icon: const Icon(Icons.add),
+            label: const Text("เพิ่มรายการ"),
+          ),
+        const Divider(),
+        Text(
+          "รวมยอดทั้งหมด: ${_budgetList.fold(0.0, (sum, item) => sum + item.amount).toInt()} บาท",
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blue),
+        ),
+      ],
+    );
+  }
+
+
+  int _calculateTotalDays() {
+    final eventDate = DateTime(widget.selectedDay.year, widget.selectedDay.month, widget.selectedDay.day);
+    final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    return eventDate.difference(today).inDays;
+  }
+
+  DateTime _calculateSavingStartDate() {
+    final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    final selectedDayOnly = DateTime(widget.selectedDay.year, widget.selectedDay.month, widget.selectedDay.day);
+    
+    if (_selectedType == 'today') {
+      return today;
+    } else {
+      int mult = _selectedType == 'year' ? 365 : (_selectedType == 'week' ? 7 : (_selectedType == 'month' ? 30 : 1));
+      return selectedDayOnly.subtract(Duration(days: _customValue * mult));
+    }
+  }
+
+  Widget _buildEditModeCountdown() {
+    int daysLeft = _calculateTotalDays();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.shade200),
+      ),
+      child: Column(
+        children: [
+          Text("สถานะกิจกรรมตอนนี้", style: TextStyle(color: Colors.orange.shade900, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          RichText(
+            text: TextSpan(
+              style: const TextStyle(color: Colors.black87, fontSize: 16),
+              children: [
+                const TextSpan(text: "เหลือเวลาอีก "),
+                TextSpan(
+                  text: "$daysLeft วัน ",
+                  style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 20),
+                ),
+                const TextSpan(text: "จะถึงวันกิจกรรม"),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            "(คุณสามารถแก้ไขงบประมาณได้ ระบบจะคำนวณยอดออมใหม่ตามวันที่เหลือ)",
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+        ],
       ),
     );
   }
@@ -370,5 +517,28 @@ class _DailyDetailViewState extends State<DailyDetailView> {
       ),
       subtitle: !isValid && !isLocked ? const Text("ย้อนอดีตเกินไป", style: TextStyle(color: Colors.red, fontSize: 10)) : null,
     );
+  }
+
+  String _formatDurationText(int totalDays) {
+    if (totalDays <= 0) return " (1 วัน)"; 
+    
+    int years = totalDays ~/ 365;
+    int remainingAfterYears = totalDays % 365;
+    
+    int months = remainingAfterYears ~/ 30;
+    int remainingAfterMonths = remainingAfterYears % 30;
+    
+    int weeks = remainingAfterMonths ~/ 7;
+    int days = remainingAfterMonths % 7;
+
+    List<String> parts = [];
+    if (years > 0) parts.add("$years ปี");
+    if (months > 0) parts.add("$months เดือน");
+    if (weeks > 0) parts.add("$weeks สัปดาห์");
+    if (days > 0) parts.add("$days วัน");
+    
+    if (parts.isEmpty && totalDays > 0) return " ($totalDays วัน)";
+
+    return " (${parts.join(' ')})";
   }
 }

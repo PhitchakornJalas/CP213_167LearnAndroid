@@ -183,7 +183,7 @@ class _HomeViewState extends State<HomeView> {
                 itemBuilder: (context, index) {
                   final event = events[index];
                   final isEventDay = isSameDay(event.startTime, day);
-                  final double budgetVal = double.tryParse(event.budget) ?? 0;
+                  final double budgetVal = event.totalBudget;
 
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

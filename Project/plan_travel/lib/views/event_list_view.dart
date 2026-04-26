@@ -49,7 +49,7 @@ class EventListView extends StatelessWidget {
                         final eventModel = DailyDetailModel(
                           id: item['id'],
                           title: item['title'],
-                          budget: item['budget'].toString(),
+                          budgetItems: item['budgetItems'],
                           isAllDay: item['isAllDay'],
                           startTime: item['startTime'],
                           endTime: item['endTime'],
@@ -158,7 +158,7 @@ class EventListView extends StatelessWidget {
                     leading: Icon(e.isAllDay ? Icons.wb_sunny : Icons.access_time, color: Colors.blue),
                     title: Text(e.title),
                     subtitle: Text(e.isAllDay ? "ตลอดวัน" : "${e.startTime.hour}:00 - ${e.endTime.hour}:00"),
-                    trailing: e.budget.isNotEmpty ? Text("${e.budget} ฿") : null,
+                    trailing: e.totalBudget > 0 ? Text("${e.totalBudget.toInt()} ฿") : null,
                     onTap: () => Navigator.push(context, MaterialPageRoute(
                       builder: (context) => DailyDetailView(selectedDay: selectedDay, existingEvent: e)
                     )),

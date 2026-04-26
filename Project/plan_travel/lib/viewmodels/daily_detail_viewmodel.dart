@@ -40,7 +40,7 @@ class DailyDetailViewModel extends ChangeNotifier {
     final events = _dailyDetails[dayOnly] ?? [];
     
     final incompleteEvents = events.where((e) {
-      double budgetVal = double.tryParse(e.budget) ?? 0;
+      double budgetVal = e.totalBudget;
       return e.amountSaved < budgetVal;
     }).toList();
 
@@ -93,16 +93,17 @@ class DailyDetailViewModel extends ChangeNotifier {
     return null;
   }
 
-  void addOrUpdateEvent(DateTime date, DailyDetailModel newEvent) {
-    final dayOnly = DateTime(date.year, date.month, date.day);
-    if (!_dailyDetails.containsKey(dayOnly)) _dailyDetails[dayOnly] = [];
+  void addOrUpdateEvent(DailyDetailModel newEvent) {
+    final newDay = DateTime(newEvent.startTime.year, newEvent.startTime.month, newEvent.startTime.day);
     
-    final index = _dailyDetails[dayOnly]!.indexWhere((e) => e.id == newEvent.id);
-    if (index != -1) {
-      _dailyDetails[dayOnly]![index] = newEvent;
-    } else {
-      _dailyDetails[dayOnly]!.add(newEvent);
-    }
+    // ค้นหาและลบตัวเดิมออกก่อน (เพื่อรองรับการย้ายวัน)
+    _dailyDetails.forEach((date, list) {
+      list.removeWhere((e) => e.id == newEvent.id);
+    });
+
+    if (!_dailyDetails.containsKey(newDay)) _dailyDetails[newDay] = [];
+    _dailyDetails[newDay]!.add(newEvent);
+    
     notifyListeners();
   }
 
@@ -113,13 +114,13 @@ class DailyDetailViewModel extends ChangeNotifier {
 
     _dailyDetails.forEach((targetDate, events) {
       for (var detail in events) {
-        if (detail.savingStartDate == null || detail.budget.isEmpty) continue;
+        if (detail.savingStartDate == null || detail.totalBudget == 0) continue;
 
         final start = DateTime(detail.savingStartDate!.year, detail.savingStartDate!.month, detail.savingStartDate!.day);
         final eventDay = DateTime(targetDate.year, targetDate.month, targetDate.day);
 
         if ((calendarDay.isAtSameMomentAs(start) || calendarDay.isAfter(start)) && calendarDay.isBefore(eventDay)) {
-          double budgetVal = double.tryParse(detail.budget) ?? 0;
+          double budgetVal = detail.totalBudget;
           int totalDays = eventDay.difference(start).inDays;
           
           if (totalDays > 0) {
@@ -140,7 +141,7 @@ class DailyDetailViewModel extends ChangeNotifier {
 
     _dailyDetails.forEach((targetDate, events) {
       for (var detail in events) {
-        if (detail.savingStartDate != null && detail.budget.isNotEmpty) {
+        if (detail.savingStartDate != null && detail.totalBudget > 0) {
           final start = DateTime(detail.savingStartDate!.year, detail.savingStartDate!.month, detail.savingStartDate!.day);
           final eventDay = DateTime(targetDate.year, targetDate.month, targetDate.day);
 
@@ -148,7 +149,7 @@ class DailyDetailViewModel extends ChangeNotifier {
           if ((calendarDay.isAtSameMomentAs(start) || calendarDay.isAfter(start)) &&
               calendarDay.isBefore(eventDay)) {
             
-            double budgetVal = double.tryParse(detail.budget) ?? 0;
+            double budgetVal = detail.totalBudget;
             int totalSavingDays = eventDay.difference(start).inDays;
             
             if (totalSavingDays > 0) {
@@ -164,7 +165,8 @@ class DailyDetailViewModel extends ChangeNotifier {
                 'startTime': detail.startTime, 
                 'endTime': detail.endTime, 
                 'amountSaved': detail.amountSaved,
-                'budget': double.tryParse(detail.budget) ?? 0,
+                'budget': detail.totalBudget,
+                'budgetItems': detail.budgetItems,
                 'savingStartDate': detail.savingStartDate,
               });
             }

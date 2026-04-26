@@ -22,10 +22,38 @@ class DailyDetailInfoView extends StatelessWidget {
           Icons.calendar_today_outlined
         ),
         const Divider(),
-        _buildInfoTile(
-          "งบประมาณ (บาท)", 
-          event.budget.isEmpty ? "ไม่ได้ระบุ" : "${event.budget} บาท", 
-          Icons.monetization_on_outlined
+        _buildBudgetInfo(),
+      ],
+    );
+  }
+
+  Widget _buildBudgetInfo() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("รายละเอียดงบประมาณ", style: TextStyle(color: Colors.grey, fontSize: 13)),
+        const SizedBox(height: 10),
+        ...event.budgetItems.where((item) => item.amount > 0).map((item) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(item.label.isEmpty ? "ไม่ได้ระบุชื่อ" : item.label, 
+                     style: const TextStyle(fontSize: 16)),
+                Text("${item.amount.toInt()} ฿", 
+                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          );
+        }).toList(),
+        const Divider(height: 30),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text("รวมยอดออมทั้งหมด", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Text("${event.totalBudget.toInt()} ฿", style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 18)),
+          ],
         ),
       ],
     );
