@@ -4,10 +4,8 @@ import 'viewmodels/daily_detail_viewmodel.dart';
 import 'viewmodels/profile_viewmodel.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'views/splash_view.dart';
-
 import 'services/firebase_service.dart';
+import 'views/auth_gate.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,8 +43,18 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Plan Travel',
-      theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.blue),
-      home: const SplashView(),
+      theme: ThemeData(
+        useMaterial3: true, 
+        colorSchemeSeed: Colors.blue,
+        appBarTheme: const AppBarTheme(
+          centerTitle: true,
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.black,
+        ),
+      ),
+      // ใช้ AuthGate เป็นหน้าหลัก เพื่อควบคุมการเข้าถึง
+      home: const AuthGate(),
     );
   }
 }

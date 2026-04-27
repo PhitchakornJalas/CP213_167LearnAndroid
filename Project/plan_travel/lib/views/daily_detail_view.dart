@@ -63,7 +63,6 @@ class _DailyDetailViewState extends State<DailyDetailView> {
       _isSaved = true;
       _currentEvent = detail;
 
-      // กู้คืนแผนการออมจาก savingStartDate
       if (detail.savingStartDate != null) {
         final eventDay = DateTime(detail.startTime.year, detail.startTime.month, detail.startTime.day);
         final startDay = DateTime(detail.savingStartDate!.year, detail.savingStartDate!.month, detail.savingStartDate!.day);
@@ -149,6 +148,8 @@ class _DailyDetailViewState extends State<DailyDetailView> {
     
     if (_selectedType == 'today') {
       return today;
+    } else if (_selectedType.isEmpty) {
+      return today;
     } else {
       int mult = _selectedType == 'year' ? 365 : (_selectedType == 'week' ? 7 : (_selectedType == 'month' ? 30 : 1));
       return eventDate.subtract(Duration(days: _customValue * mult));
@@ -163,7 +164,6 @@ class _DailyDetailViewState extends State<DailyDetailView> {
     final isLocked = selectedDayOnly.isBefore(today) || selectedDayOnly.isAtSameMomentAs(today);
 
     double totalBudget = _budgetList.fold(0.0, (sum, item) => sum + item.targetAmount);
-    bool hasBudget = totalBudget > 0;
 
     return Scaffold(
       appBar: AppBar(
@@ -222,7 +222,7 @@ class _DailyDetailViewState extends State<DailyDetailView> {
             const SizedBox(height: 20),
             _buildBudgetSection(isLocked),
             
-            if (hasBudget && !isLocked) ...[
+            if (totalBudget > 0 && !isLocked) ...[
               const SizedBox(height: 20),
               const Align(
                 alignment: Alignment.centerLeft, 
