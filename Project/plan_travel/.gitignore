@@ -47,3 +47,7 @@ app.*.map.json
 .env
 *.jks
 *.keystore
+# Firebase configuration files
+google-services.json
+GoogleService-Info.plist
+assets/env

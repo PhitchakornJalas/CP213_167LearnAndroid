@@ -1,7 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'package:provider/provider.dart';
+import '../viewmodels/profile_viewmodel.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import 'bank_account_view.dart';
+import 'profile_main_view.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -11,124 +15,164 @@ class SettingsView extends StatefulWidget {
 }
 
 class _SettingsViewState extends State<SettingsView> {
-  GoogleSignInAccount? _currentUser;
-  bool _isLoading = false;
+  bool _isLoggingIn = false;
 
-  @override
-  void initState() {
-    super.initState();
-    // ตรวจสอบว่าเคย Login ไว้หรือไม่
-    AuthService.getCurrentUser().then((user) {
-      if (mounted) {
-        setState(() => _currentUser = user);
-      }
-    });
+  // Widget สำหรับปุ่ม Login แบบ Minimal White
+  Widget _buildLoginButton() {
+    return Container(
+      width: double.infinity,
+      height: 55,
+      margin: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
+      child: ElevatedButton(
+        onPressed: _isLoggingIn ? null : _handleLogin,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black87,
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        ),
+        child: _isLoggingIn
+            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+            : Row(
+                mainAxisSize: MainAxisSize.min, // จำกัดขนาด Row ไม่ให้ขยายเกินจำเป็น
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image.network(
+                    'https://w7.pngwing.com/pngs/326/85/png-transparent-google-logo-google-text-trademark-logo-thumbnail.png',
+                    height: 20,
+                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.login, size: 20, color: Colors.blue),
+                  ),
+                  const SizedBox(width: 12),
+                  const Flexible(
+                    child: Text(
+                      "เข้าสู่ระบบด้วย Google",
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
   }
 
-  Widget _buildGoogleSignInButton() {
-    if (_isLoading) {
-      return const SizedBox(
-        height: 20,
-        width: 20,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      );
-    }
-
-    return _currentUser == null
-        ? TextButton.icon(
-            onPressed: () async {
-              setState(() => _isLoading = true);
-              print('Attempting to login...');
-              try {
-                final user = await AuthService.login();
-                if (user != null) {
-                  print('Login successful: ${user.displayName}');
-                  setState(() => _currentUser = user);
-                } else {
-                  print('Login failed or cancelled');
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("เข้าสู่ระบบล้มเหลว กรุณาตรวจสอบการตั้งค่า (SHA-1)")),
+  // Widget สำหรับแสดงข้อมูลโปรไฟล์เมื่อ Login แล้ว
+  Widget _buildProfileHeader(User user) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        children: [
+          Consumer<ProfileViewModel>(
+            builder: (context, profileVM, child) {
+              final localImage = profileVM.profile?.profileImagePath;
+              
+              return GestureDetector(
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileMainView())),
+                child: CircleAvatar(
+                  radius: 35,
+                  backgroundColor: Colors.blue.shade100,
+                  backgroundImage: localImage != null 
+                      ? FileImage(File(localImage)) 
+                      : (user.photoURL != null ? NetworkImage(user.photoURL!) as ImageProvider : null),
+                  child: (localImage == null && user.photoURL == null) 
+                      ? const Icon(Icons.person, size: 40, color: Colors.blue) 
+                      : null,
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Consumer<ProfileViewModel>(
+                  builder: (context, profileVM, child) {
+                    String displayName = user.displayName ?? "ผู้ใช้งาน";
+                    final localNickname = profileVM.profile?.nickname;
+                    
+                    // ถ้ามีชื่อเล่นในเครื่อง และไม่ใช่ค่าเริ่มต้น ให้ใช้ชื่อเล่นแทน
+                    if (localNickname != null && localNickname != 'นักเดินทาง') {
+                      displayName = localNickname;
+                    }
+                    
+                    return Text(
+                      displayName,
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      overflow: TextOverflow.ellipsis,
                     );
-                  }
-                }
-              } finally {
-                if (mounted) setState(() => _isLoading = false);
-              }
-            },
-            icon: const Icon(Icons.login, color: Colors.blue),
-            label: const Text("เข้าสู่ระบบด้วย Google", style: TextStyle(color: Colors.blue)),
-          )
-        : TextButton.icon(
-            onPressed: () async {
-              await AuthService.logout();
-              setState(() => _currentUser = null);
-            },
-            icon: const Icon(Icons.logout, color: Colors.red),
-            label: const Text("ออกจากระบบ", style: TextStyle(color: Colors.red)),
-          );
+                  },
+                ),
+                Text(
+                  user.email ?? "",
+                  style: const TextStyle(color: Colors.grey, fontSize: 14),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                GestureDetector(
+                  onTap: () => AuthService.logout(),
+                  child: const Text(
+                    "ออกจากระบบ",
+                    style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileMainView())),
+            icon: const Icon(Icons.edit_note, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleLogin() async {
+    setState(() => _isLoggingIn = true);
+    try {
+      final user = await AuthService.login();
+      if (user == null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("เข้าสู่ระบบล้มเหลว")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoggingIn = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      children: [
-        // ส่วนหัว: บัญชีผู้ใช้
-        Container(
-          padding: const EdgeInsets.all(20),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 35,
-                backgroundColor: Colors.blueAccent,
-                backgroundImage: _currentUser?.photoUrl != null 
-                    ? NetworkImage(_currentUser!.photoUrl!) 
-                    : null,
-                child: _currentUser?.photoUrl == null 
-                    ? const Icon(Icons.person, size: 40, color: Colors.white)
-                    : null,
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _currentUser?.displayName ?? "ยังไม่ได้เข้าสู่ระบบ", 
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)
-                    ),
-                    Text(
-                      _currentUser?.email ?? "คลิกเพื่อ Login", 
-                      style: const TextStyle(color: Colors.grey)
-                    ),
-                    const SizedBox(height: 8),
-                    _buildGoogleSignInButton(),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const Divider(),
-        ListTile(
-          leading: const Icon(Icons.manage_accounts, color: Colors.blueAccent),
-          title: const Text("จัดการบัญชีผู้ใช้"),
-          subtitle: const Text("แก้ไขข้อมูลส่วนตัว และรหัสผ่าน"),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () {
-             // Logic ไปหน้าจัดการบัญชี
-          },
-        ),
-        ListTile(
-          leading: const Icon(Icons.account_balance, color: Colors.green),
-          title: const Text("จัดการบัญชีธนาคาร"),
-          subtitle: const Text("สำหรับรับเงินออมและสร้าง QR Code"),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => const BankAccountView()));
-          },
-        ),
-      ],
+    return StreamBuilder<User?>(
+      stream: AuthService.authStateChanges,
+      builder: (context, snapshot) {
+        final User? user = snapshot.data;
+
+        return ListView(
+          children: [
+            // ส่วนหัว (Header) ตามสถานะ Login
+            Container(
+              constraints: const BoxConstraints(minHeight: 140),
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              alignment: Alignment.center,
+              child: user == null ? _buildLoginButton() : _buildProfileHeader(user),
+            ),
+            const Divider(),
+            
+            // รายการเมนูที่เหลืออยู่
+            ListTile(
+              leading: const Icon(Icons.account_balance, color: Colors.green),
+              title: const Text("จัดการบัญชีธนาคาร"),
+              subtitle: const Text("สำหรับรับเงินออมและสร้าง QR Code"),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const BankAccountView()));
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 }

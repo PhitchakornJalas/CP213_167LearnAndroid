@@ -1,32 +1,48 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:io';
 
 class AuthService {
-  // ตั้งค่า GoogleSignIn โดยแยกตาม Platform
+  static final FirebaseAuth _auth = FirebaseAuth.instance;
+  
   static final GoogleSignIn _googleSignIn = GoogleSignIn(
-    // สำหรับ Android บางครั้งไม่ต้องระบุ Client ID หากลงทะเบียน SHA-1 ถูกต้อง
-    // serverClientId: Platform.isAndroid ? dotenv.env['GOOGLE_CLIENT_ID_ANDROID'] : null,
     clientId: Platform.isIOS ? dotenv.env['GOOGLE_CLIENT_ID_IOS'] : null,
-    scopes: [
-      'email',
-      'https://www.googleapis.com/auth/userinfo.profile',
-    ],
+    serverClientId: dotenv.env['GOOGLE_WEB_CLIENT_ID'],
+    scopes: ['email', 'profile'],
   );
 
-  // ฟังก์ชัน Login
-  static Future<GoogleSignInAccount?> login() async {
+  // สังเกตสถานะการเข้าสู่ระบบ
+  static Stream<User?> get authStateChanges => _auth.authStateChanges();
+
+  // ฟังก์ชัน Login (Google + Firebase)
+  static Future<User?> login() async {
     try {
-      return await _googleSignIn.signIn();
+      // 1. เริ่มต้นการเข้าสู่ระบบด้วย Google
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) return null;
+
+      // 2. ดึง Authentication credentials จาก Google
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      // 3. สร้าง Credential สำหรับ Firebase
+      final OAuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      // 4. เข้าสู่ระบบ Firebase
+      final UserCredential userCredential = await _auth.signInWithCredential(credential);
+      return userCredential.user;
     } catch (error) {
-      print('Google Sign In Error: $error');
+      print('Firebase Google Sign In Error: $error');
       return null;
     }
   }
 
   // ฟังก์ชัน Logout
-  static Future<void> logout() => _googleSignIn.disconnect();
-
-  // ตรวจสอบว่า Login อยู่หรือไม่
-  static Future<GoogleSignInAccount?> getCurrentUser() => _googleSignIn.signInSilently();
+  static Future<void> logout() async {
+    await _googleSignIn.signOut();
+    await _auth.signOut();
+  }
 }

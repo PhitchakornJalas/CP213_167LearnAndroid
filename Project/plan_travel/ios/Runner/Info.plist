@@ -75,12 +75,12 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.712809056976-s589fm1s6n6qtqsci28lh9g505860886</string>
+				<string>com.googleusercontent.apps.935031617779-dceqgq7qnsvpvjgecn02pfp8v4ttr8v2</string>
 			</array>
 		</dict>
 	</array>
 	<key>GIDClientID</key>
-	<string>712809056976-s589fm1s6n6qtqsci28lh9g505860886.apps.googleusercontent.com</string>
+	<string>935031617779-dceqgq7qnsvpvjgecn02pfp8v4ttr8v2.apps.googleusercontent.com</string>
 	<!-- End of the Google Sign-in Section -->
 </dict>
 </plist>
