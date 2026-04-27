@@ -25,7 +25,7 @@ class ProfileModel {
 
   factory ProfileModel.fromMap(Map<String, dynamic> map) {
     return ProfileModel(
-      nickname: map['nickname'] ?? 'นักเดินทาง',
+      nickname: map['nickname'] ?? map['email'],
       photoUrl: map['photoUrl'],
       accountName: map['accountName'],
       promptPay: map['promptPay'],

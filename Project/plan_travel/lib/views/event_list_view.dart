@@ -42,9 +42,9 @@ class EventListView extends StatelessWidget {
                       ? "ทั้งวัน" 
                       : "${event.startTime.hour}:00 - ${event.endTime.hour}:00";
 
-                  // เช็คว่าวันนี้ออมไปหรือยัง (ใน Firestore เราจะดูจากยอดรวมออม หรือเก็บประวัติแยกก็ได้)
-                  // เบื้องต้นให้กดออมได้เรื่อยๆ จนกว่าจะครบยอด
-                  bool isFull = event.totalSaved >= event.totalBudget;
+                  // เช็คสถานะการออมจาก ViewModel
+                  bool isPaid = item['isPaid'] ?? false;
+                  bool isFull = item['isFull'] ?? false;
 
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
@@ -60,7 +60,7 @@ class EventListView extends StatelessWidget {
                           child: IntrinsicHeight(
                             child: Row(
                               children: [
-                                const Icon(Icons.savings, color: Colors.orange, size: 35),
+                                Icon(Icons.savings, color: isPaid ? Colors.green : Colors.orange, size: 35),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
@@ -79,10 +79,14 @@ class EventListView extends StatelessWidget {
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Text("${item['amount'].toInt()} ฿", 
-                                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                        style: TextStyle(
+                                          fontSize: 18, 
+                                          fontWeight: FontWeight.bold,
+                                          color: isPaid ? Colors.green : Colors.black,
+                                        )),
                                     const SizedBox(height: 8),
                                     ElevatedButton(
-                                      onPressed: isFull 
+                                      onPressed: (isPaid || isFull) 
                                           ? null 
                                           : () {
                                               if (profileVM.profile?.promptPay == null || profileVM.profile!.promptPay!.isEmpty) {
@@ -93,23 +97,21 @@ class EventListView extends StatelessWidget {
                                               }
                                               Navigator.push(context, MaterialPageRoute(
                                                 builder: (context) => QRPaymentView(
-                                                  eventId: event.id,
-                                                  amount: item['amount'],
-                                                  title: "ออมเพื่อ ${event.title}",
+                                                  savingBreakdown: [item],
+                                                  totalAmount: item['amount'],
                                                   promptPayId: profileVM.profile!.promptPay!,
                                                   accountName: profileVM.profile!.accountName ?? "ออมเงิน",
-                                                  currentDay: selectedDay,
                                                   useSlipVerification: false,
                                                 )
                                               ));
                                             }, 
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: isFull ? Colors.grey.shade300 : Colors.orange.shade100,
-                                        foregroundColor: isFull ? Colors.grey : Colors.orange.shade900,
-                                        elevation: isFull ? 0 : 2,
+                                        backgroundColor: (isPaid || isFull) ? Colors.green.shade100 : Colors.orange.shade100,
+                                        foregroundColor: (isPaid || isFull) ? Colors.green.shade900 : Colors.orange.shade900,
+                                        elevation: (isPaid || isFull) ? 0 : 2,
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                                       ),
-                                      child: Text(isFull ? "ครบแล้ว" : "ออมเลย"),
+                                      child: Text(isFull ? "ครบแล้ว" : (isPaid ? "ออมแล้ว" : "ออมเลย")),
                                     ),
                                   ],
                                 ),

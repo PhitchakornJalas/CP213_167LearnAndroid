@@ -5,23 +5,19 @@ import 'package:provider/provider.dart';
 import '../viewmodels/daily_detail_viewmodel.dart';
 
 class QRPaymentView extends StatefulWidget {
-  final String eventId;
-  final double amount;
-  final String title;
+  final List<Map<String, dynamic>> savingBreakdown; // เปลี่ยนมาใช้ Breakdown แทน
+  final double totalAmount;
   final String promptPayId;
   final String accountName;
   final bool useSlipVerification;
-  final DateTime currentDay;
 
   const QRPaymentView({
     super.key, 
-    required this.eventId,
-    required this.amount, 
-    required this.title, 
+    required this.savingBreakdown,
+    required this.totalAmount, 
     required this.promptPayId,
     required this.accountName,
-    required this.currentDay,
-    this.useSlipVerification = false, // Default เป็นแบบกดยืนยันได้เลย
+    this.useSlipVerification = false,
   });
 
   @override
@@ -40,21 +36,25 @@ class _QRPaymentViewState extends State<QRPaymentView> {
   void _processConfirm(BuildContext context) {
     final vm = Provider.of<DailyDetailViewModel>(context, listen: false);
     
-    // อัปเดตสถานะใน ViewModel (ย้ายไป Firestore)
-    vm.confirmSaving(widget.eventId, widget.amount);
+    // อัปเดตสถานะใน Firestore ผ่าน ViewModel
+    vm.confirmSaving(widget.totalAmount, widget.savingBreakdown);
     
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("ออมเงินสำเร็จ!"), backgroundColor: Colors.green),
     );
-    Navigator.pop(context); // กลับไปหน้า List
+    Navigator.pop(context);
   }
 
   Widget _buildQRSection() {
+    String title = widget.savingBreakdown.length == 1 
+        ? "ออมเพื่อ ${widget.savingBreakdown[0]['title']}" 
+        : "ออมเงินรวมสำหรับวันนี้";
+
     return Column(
       children: [
         const SizedBox(height: 30),
-        Text(widget.title, style: const TextStyle(fontSize: 18, color: Colors.grey)),
-        Text("${widget.amount.toInt()} ฿", 
+        Text(title, style: const TextStyle(fontSize: 18, color: Colors.grey)),
+        Text("${widget.totalAmount.toInt()} ฿", 
             style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
         const SizedBox(height: 20),
         
@@ -70,7 +70,7 @@ class _QRPaymentViewState extends State<QRPaymentView> {
               children: [
                 QRCodeGenerate(
                   promptPayId: widget.promptPayId, 
-                  amount: widget.amount,
+                  amount: widget.totalAmount,
                   width: 220,
                   height: 220,
                 ),
@@ -118,23 +118,18 @@ class _QRPaymentViewState extends State<QRPaymentView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.useSlipVerification ? "ยืนยันด้วยสลิป" : "ยืนยันการโอม")),
+      appBar: AppBar(title: Text(widget.useSlipVerification ? "ยืนยันด้วยสลิป" : "ยืนยันการโอน")),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // ส่วนแสดง QR และยอดเงิน (เหมือนเดิมที่ทำไว้)
             _buildQRSection(),
-
             const SizedBox(height: 20),
-
-            // --- Version 2: ถ้าต้องส่งสลิป ---
             if (widget.useSlipVerification) ...[
               const Divider(),
               if (_slipImage != null) 
-                Image.network(_slipImage!.path, height: 200) // ตัวอย่างโชว์รูปที่เลือก
+                Image.network(_slipImage!.path, height: 200)
               else
                 const Text("ยังไม่ได้เลือกสลิป"),
-              
               ElevatedButton.icon(
                 onPressed: _pickImage,
                 icon: const Icon(Icons.image),
@@ -142,13 +137,11 @@ class _QRPaymentViewState extends State<QRPaymentView> {
               ),
               const SizedBox(height: 10),
             ],
-
-            // --- ปุ่มกดยืนยัน (ใช้ได้ทั้ง 2 Version) ---
             Padding(
               padding: const EdgeInsets.all(20),
               child: ElevatedButton(
                 onPressed: (widget.useSlipVerification && _slipImage == null) 
-                    ? null // ถ้าต้องใช้สลิปแต่ยังไม่เลือก ให้กดไม่ได้
+                    ? null 
                     : () => _processConfirm(context),
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 55),

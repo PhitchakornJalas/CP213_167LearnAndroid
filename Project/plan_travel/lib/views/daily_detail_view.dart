@@ -154,7 +154,7 @@ class _DailyDetailViewState extends State<DailyDetailView> {
   }
 
   bool _isPlanInvalid(String type, int value) {
-    if (value <= 0) return true; // ห้ามเลข 0 หรือลบ
+    if (value <= 0) return true;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final eventDate = DateTime(_startDateTime.year, _startDateTime.month, _startDateTime.day);
@@ -332,7 +332,6 @@ class _DailyDetailViewState extends State<DailyDetailView> {
   Widget _buildPlanRadio(String label, String type, TextEditingController controller) {
     int value = int.tryParse(controller.text) ?? 1;
     bool isInvalid = _isPlanInvalid(type, value);
-    // เช็คว่าถ้าใส่แค่ 1 แล้วยัง Invalid ไหม (แปลว่าแผนนี้ใช้ไม่ได้เลยสำหรับกิจกรรมนี้)
     bool isAlwaysInvalid = _isPlanInvalid(type, 1);
 
     return Opacity(
@@ -354,7 +353,7 @@ class _DailyDetailViewState extends State<DailyDetailView> {
                   child: TextField(
                     keyboardType: TextInputType.number,
                     controller: controller,
-                    enabled: !isAlwaysInvalid, // ถ้าเป็นไปไม่ได้เลย ให้แก้เลขไม่ได้
+                    enabled: !isAlwaysInvalid,
                     decoration: const InputDecoration(isDense: true),
                     onChanged: (v) {
                       int newVal = int.tryParse(v) ?? 1;
