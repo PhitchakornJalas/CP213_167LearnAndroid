@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/daily_detail_model.dart';
 import '../services/firebase_service.dart';
 
@@ -7,15 +8,33 @@ class DailyDetailViewModel extends ChangeNotifier {
   final FirebaseService _firebaseService;
   List<DailyDetailModel> _allEvents = [];
   StreamSubscription? _eventsSubscription;
-  bool _isLoading = true; // เพิ่มสถานะ Loading
-  String? _errorMessage; // เพิ่มตัวแปรเก็บ Error
+  StreamSubscription? _authSubscription;
+  bool _isLoading = true;
+  String? _errorMessage;
 
   DailyDetailViewModel(this._firebaseService) {
-    _listenToEvents();
+    _listenToAuthChanges();
   }
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+
+  // ติดตามการเปลี่ยนแปลงการ Login/Logout
+  void _listenToAuthChanges() {
+    _authSubscription?.cancel();
+    _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (user == null) {
+        // ถ้า Logout ให้ล้างข้อมูลทันที
+        _allEvents = [];
+        _eventsSubscription?.cancel();
+        _isLoading = false;
+        notifyListeners();
+      } else {
+        // ถ้า Login ใหม่ให้เริ่มติดตามข้อมูลของ User นั้น
+        _listenToEvents();
+      }
+    });
+  }
 
   // ดึงข้อมูล Real-time จาก Firestore
   void _listenToEvents() {
@@ -143,6 +162,7 @@ class DailyDetailViewModel extends ChangeNotifier {
   @override
   void dispose() {
     _eventsSubscription?.cancel();
+    _authSubscription?.cancel();
     super.dispose();
   }
 }
