@@ -47,20 +47,11 @@ class DailyDetailInfoView extends StatelessWidget {
                   children: [
                     Text(item.label.isEmpty ? "ไม่ได้ระบุชื่อ" : item.label, 
                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-                    Text("${item.savedAmount.toInt()} / ${item.targetAmount.toInt()} ฿", 
-                         style: const TextStyle(fontSize: 14, color: Colors.blueGrey)),
+                    Text("${item.targetAmount.toInt()} ฿", 
+                         style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
                   ],
                 ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 10,
-                    backgroundColor: Colors.grey.shade200,
-                    color: progress >= 1.0 ? Colors.green : Colors.blue,
-                  ),
-                ),
+                const SizedBox(height: 4),
               ],
             ),
           );
