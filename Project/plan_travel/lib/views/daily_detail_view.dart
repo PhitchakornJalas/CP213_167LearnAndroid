@@ -22,7 +22,6 @@ class _DailyDetailViewState extends State<DailyDetailView> {
   List<BudgetItem> _budgetList = [BudgetItem(label: '', targetAmount: 0)];
   DailyDetailModel? _currentEvent;
   
-  // Controllers สำหรับแผนการออม
   final TextEditingController _dayController = TextEditingController(text: '1');
   final TextEditingController _weekController = TextEditingController(text: '1');
   final TextEditingController _monthController = TextEditingController(text: '1');
@@ -68,7 +67,7 @@ class _DailyDetailViewState extends State<DailyDetailView> {
         final startDay = DateTime(detail.savingStartDate!.year, detail.savingStartDate!.month, detail.savingStartDate!.day);
         int diff = eventDay.difference(startDay).inDays;
         
-        if (diff == 0) {
+        if (diff <= 0) {
           _selectedType = 'today';
         } else if (diff % 365 == 0) {
           _selectedType = 'year'; _customValue = diff ~/ 365;
@@ -146,14 +145,24 @@ class _DailyDetailViewState extends State<DailyDetailView> {
     final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
     final eventDate = DateTime(_startDateTime.year, _startDateTime.month, _startDateTime.day);
     
-    if (_selectedType == 'today') {
-      return today;
-    } else if (_selectedType.isEmpty) {
+    if (_selectedType == 'today' || _selectedType.isEmpty) {
       return today;
     } else {
       int mult = _selectedType == 'year' ? 365 : (_selectedType == 'week' ? 7 : (_selectedType == 'month' ? 30 : 1));
       return eventDate.subtract(Duration(days: _customValue * mult));
     }
+  }
+
+  bool _isPlanInvalid(String type, int value) {
+    if (value <= 0) return true; // ห้ามเลข 0 หรือลบ
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final eventDate = DateTime(_startDateTime.year, _startDateTime.month, _startDateTime.day);
+    
+    int mult = type == 'year' ? 365 : (type == 'week' ? 7 : (type == 'month' ? 30 : 1));
+    final calculatedStart = eventDate.subtract(Duration(days: value * mult));
+    
+    return calculatedStart.isBefore(today);
   }
 
   @override
@@ -234,10 +243,10 @@ class _DailyDetailViewState extends State<DailyDetailView> {
                 groupValue: _selectedType,
                 onChanged: (v) => setState(() => _selectedType = v!),
               ),
-              _buildPlanRadio("วัน", 'day', 1, _dayController),
-              _buildPlanRadio("สัปดาห์", 'week', 7, _weekController),
-              _buildPlanRadio("เดือน", 'month', 30, _monthController),
-              _buildPlanRadio("ปี", 'year', 365, _yearController),
+              _buildPlanRadio("วัน", 'day', _dayController),
+              _buildPlanRadio("สัปดาห์", 'week', _weekController),
+              _buildPlanRadio("เดือน", 'month', _monthController),
+              _buildPlanRadio("ปี", 'year', _yearController),
             ],
 
             const SizedBox(height: 30),
@@ -267,6 +276,33 @@ class _DailyDetailViewState extends State<DailyDetailView> {
     }
 
     final vm = context.read<DailyDetailViewModel>();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    final overlapError = vm.checkTimeOverlap(
+      widget.selectedDay, 
+      _startDateTime, 
+      _endDateTime, 
+      _isAllDay,
+      excludeId: _currentEvent?.id
+    );
+    if (overlapError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(overlapError), backgroundColor: Colors.orange)
+      );
+      return;
+    }
+
+    final savingStart = _calculateSavingStartDate();
+    if (savingStart.isBefore(today) && _currentEvent == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('แผนการออมไม่สามารถเริ่มในอดีตได้ กรุณาปรับจำนวนวัน'), 
+          backgroundColor: Colors.orange
+        )
+      );
+      return;
+    }
     
     final newEvent = DailyDetailModel(
       id: _currentEvent?.id ?? '',
@@ -276,7 +312,7 @@ class _DailyDetailViewState extends State<DailyDetailView> {
       startTime: _startDateTime,
       endTime: _endDateTime,
       createdAt: _currentEvent?.createdAt ?? DateTime.now(),
-      savingStartDate: _calculateSavingStartDate(),
+      savingStartDate: savingStart,
     );
 
     await vm.addOrUpdateEvent(newEvent);
@@ -293,31 +329,70 @@ class _DailyDetailViewState extends State<DailyDetailView> {
     }
   }
 
-  Widget _buildPlanRadio(String label, String type, int multiplier, TextEditingController controller) {
-    return RadioListTile<String>(
-      value: type,
-      groupValue: _selectedType,
-      onChanged: (v) => setState(() {
-        _selectedType = v!;
-        _customValue = int.tryParse(controller.text) ?? 1;
-      }),
-      title: Row(
+  Widget _buildPlanRadio(String label, String type, TextEditingController controller) {
+    int value = int.tryParse(controller.text) ?? 1;
+    bool isInvalid = _isPlanInvalid(type, value);
+    // เช็คว่าถ้าใส่แค่ 1 แล้วยัง Invalid ไหม (แปลว่าแผนนี้ใช้ไม่ได้เลยสำหรับกิจกรรมนี้)
+    bool isAlwaysInvalid = _isPlanInvalid(type, 1);
+
+    return Opacity(
+      opacity: isAlwaysInvalid ? 0.3 : (isInvalid ? 0.6 : 1.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 50,
-            child: TextField(
-              keyboardType: TextInputType.number,
-              controller: controller,
-              decoration: const InputDecoration(isDense: true),
-              onChanged: (v) {
-                setState(() {
-                  _customValue = int.tryParse(v) ?? 1;
-                  _selectedType = type;
-                });
-              },
+          RadioListTile<String>(
+            value: type,
+            groupValue: _selectedType,
+            onChanged: (isAlwaysInvalid || isInvalid) ? null : (v) => setState(() {
+              _selectedType = v!;
+              _customValue = int.tryParse(controller.text) ?? 1;
+            }),
+            title: Row(
+              children: [
+                SizedBox(
+                  width: 50,
+                  child: TextField(
+                    keyboardType: TextInputType.number,
+                    controller: controller,
+                    enabled: !isAlwaysInvalid, // ถ้าเป็นไปไม่ได้เลย ให้แก้เลขไม่ได้
+                    decoration: const InputDecoration(isDense: true),
+                    onChanged: (v) {
+                      int newVal = int.tryParse(v) ?? 1;
+                      if (newVal <= 0) {
+                        controller.text = '1';
+                        newVal = 1;
+                      }
+                      setState(() {
+                        _customValue = newVal;
+                        if (!_isPlanInvalid(type, _customValue)) {
+                          _selectedType = type;
+                        } else if (_selectedType == type) {
+                          _selectedType = 'today';
+                        }
+                      });
+                    },
+                  ),
+                ),
+                Text(" $label ก่อนเริ่ม"),
+              ],
             ),
           ),
-          Text(" $label ก่อนเริ่ม"),
+          if (isAlwaysInvalid)
+            const Padding(
+              padding: EdgeInsets.only(left: 70),
+              child: Text(
+                "ระยะเวลาทริปสั้นเกินไปสำหรับแผนนี้",
+                style: TextStyle(color: Colors.orange, fontSize: 11, fontWeight: FontWeight.bold),
+              ),
+            )
+          else if (isInvalid)
+            const Padding(
+              padding: EdgeInsets.only(left: 70),
+              child: Text(
+                "ย้อนอดีต! กรุณาลดตัวเลข",
+                style: TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.bold),
+              ),
+            ),
         ],
       ),
     );
