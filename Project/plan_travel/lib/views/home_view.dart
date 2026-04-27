@@ -69,16 +69,15 @@ class _HomeViewState extends State<HomeView> {
         ] : null,
       ),
       body: _selectedIndex == 0 
-          ? SingleChildScrollView( // ครอบเฉพาะหน้าปฏิทิน
-              child: Column(
-                children: [
-                  _buildCalendarPage(context),
-                  // ถ้ามีข้อมูลอื่นๆ ใต้ปฏิทินก็ใส่ต่อตรงนี้ได้
-                  const SizedBox(height: 20), 
-                ],
-              ),
+          ? Column( // ใช้ Column เพื่อให้ Expanded ทำงานได้
+              children: [
+                Expanded(
+                  child: _buildCalendarPage(context),
+                ),
+                const SizedBox(height: 10), 
+              ],
             )
-          : _pages[_selectedIndex], // หน้าอื่นๆ ให้แสดงปกติ
+          : _pages[_selectedIndex],
       
       // 3. เพิ่ม Bottom Navigation Bar (โครง Dummy 4 เมนู)
       bottomNavigationBar: BottomNavigationBar(
@@ -115,15 +114,16 @@ class _HomeViewState extends State<HomeView> {
     
     return TableCalendar(
       locale: 'th_TH',
+      shouldFillViewport: true, // ทำให้ปฏิทินขยายเต็มพื้นที่
+      daysOfWeekHeight: 50, // เพิ่มความสูงให้แถบชื่อวันเพื่อเว้นระยะจากขอบบน
       eventLoader: (day) => dailyVM.getEventsForDay(day),
       firstDay: DateTime.utc(2020, 1, 1),
       lastDay: DateTime.utc(2100, 12, 31),
       focusedDay: _focusedDay,
       calendarFormat: _calendarFormat,
-      rowHeight: 120,
       availableGestures: AvailableGestures.all, 
       selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-      headerVisible: false, // ย้ายมาอยู่ตรงนี้ครับ
+      headerVisible: false,
       headerStyle: const HeaderStyle(
         formatButtonVisible: false,
       ),
@@ -131,8 +131,8 @@ class _HomeViewState extends State<HomeView> {
         dowTextFormatter: (date, locale) {
           return ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."][date.weekday % 7];
         },
-        weekdayStyle: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
-        weekendStyle: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
+        weekdayStyle: const TextStyle(color: Colors.black87, fontWeight: FontWeight.normal),
+        weekendStyle: const TextStyle(color: Colors.black87, fontWeight: FontWeight.normal),
       ),
       onDaySelected: (selectedDay, focusedDay) {
         setState(() {

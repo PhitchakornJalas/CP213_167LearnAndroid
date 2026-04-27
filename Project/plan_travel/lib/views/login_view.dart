@@ -34,25 +34,19 @@ class _LoginViewState extends State<LoginView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
+      backgroundColor: Colors.white,
+      body: SizedBox(
         width: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Colors.blueAccent, Colors.blue],
-          ),
-        ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             // Logo Section
-            const Icon(Icons.calendar_month, size: 120, color: Colors.white),
+            const Icon(Icons.calendar_month, size: 120, color: Colors.blueAccent),
             const SizedBox(height: 20),
             const Text(
               'Plan Travel',
               style: TextStyle(
-                color: Colors.white,
+                color: Colors.black87,
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1.2,
@@ -60,33 +54,34 @@ class _LoginViewState extends State<LoginView> {
             ),
             const Text(
               'วางแผนการออม เพื่อทริปในฝันของคุณ',
-              style: TextStyle(color: Colors.white70, fontSize: 16),
+              style: TextStyle(color: Colors.grey, fontSize: 16),
             ),
             
             const SizedBox(height: 80),
 
             // Login Button Section
             if (_isLoggingIn)
-              const CircularProgressIndicator(color: Colors.white)
+              const CircularProgressIndicator(color: Colors.blueAccent)
             else
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 40),
-                child: ElevatedButton(
+                child: OutlinedButton(
                   onPressed: _handleGoogleSignIn,
-                  style: ElevatedButton.styleFrom(
+                  style: OutlinedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: Colors.black87,
+                    side: BorderSide(color: Colors.grey.shade300),
                     minimumSize: const Size(double.infinity, 55),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
                     ),
-                    elevation: 5,
+                    elevation: 2,
+                    shadowColor: Colors.black12,
                   ),
                   child: Row(
-                    mainAxisSize: MainAxisSize.min, // ใช้พื้นที่เท่าที่จำเป็น
+                    mainAxisSize: MainAxisSize.min,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // ใช้ URL ที่ปลอดภัยกว่า หรือ Icon สำรองถ้าโหลดไม่ได้
                       Image.network(
                         'https://www.gstatic.com/images/branding/product/2x/googleg_48dp.png',
                         height: 24,
@@ -94,7 +89,7 @@ class _LoginViewState extends State<LoginView> {
                         errorBuilder: (context, error, stackTrace) => const Icon(Icons.login, color: Colors.blue),
                       ),
                       const SizedBox(width: 12),
-                      const Flexible( // ป้องกันตัวหนังสือล้นจอ
+                      const Flexible(
                         child: Text(
                           'เข้าสู่ระบบด้วย Google',
                           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -109,7 +104,7 @@ class _LoginViewState extends State<LoginView> {
             const SizedBox(height: 20),
             const Text(
               'ปลอดภัย มั่นใจ ข้อมูลซิงค์ผ่าน Cloud',
-              style: TextStyle(color: Colors.white60, fontSize: 12),
+              style: TextStyle(color: Colors.grey, fontSize: 12),
             ),
           ],
         ),

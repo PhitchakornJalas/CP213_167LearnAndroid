@@ -47,10 +47,11 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true, 
         colorSchemeSeed: Colors.blue,
+        scaffoldBackgroundColor: Colors.white, // พื้นหลังแอปสีขาว
         appBarTheme: const AppBarTheme(
           centerTitle: true,
           elevation: 0,
-          backgroundColor: Colors.transparent,
+          backgroundColor: Colors.white, // พื้นหลัง AppBar สีขาว
           foregroundColor: Colors.black,
         ),
       ),
