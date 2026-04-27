@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'viewmodels/daily_detail_viewmodel.dart';
 import 'views/splash_view.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: "assets/env");
+
   runApp(
     // หุ้มแอปด้วย Provider เพื่อให้ทุกหน้าเรียกใช้ ViewModel ได้
     ChangeNotifierProvider(

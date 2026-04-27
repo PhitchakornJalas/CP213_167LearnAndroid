@@ -243,31 +243,27 @@ class _DailyDetailViewState extends State<DailyDetailView> {
             if (hasBudget) ...[
               const SizedBox(height: 20),
               
-              if (widget.existingEvent == null || widget.existingEvent!.savingStartDate == null) ...[
-                const Align(
-                  alignment: Alignment.centerLeft, 
-                  child: Text("แผนการออมเงิน", style: TextStyle(fontWeight: FontWeight.bold))
+              const Align(
+                alignment: Alignment.centerLeft, 
+                child: Text("แผนการออมเงิน", style: TextStyle(fontWeight: FontWeight.bold))
+              ),
+              RadioListTile<String>(
+                title: Row(
+                  children: [
+                    const Text("ตั้งแต่วันนี้"),
+                    if (_selectedType == 'today')
+                      Text(_formatDurationText(_calculateTotalDays()), 
+                           style: const TextStyle(color: Colors.blue, fontSize: 13, fontWeight: FontWeight.bold)),
+                  ],
                 ),
-                RadioListTile<String>(
-                  title: Row(
-                    children: [
-                      const Text("ตั้งแต่วันนี้"),
-                      if (_selectedType == 'today')
-                        Text(_formatDurationText(_calculateTotalDays()), 
-                             style: const TextStyle(color: Colors.blue, fontSize: 13, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  value: 'today', 
-                  groupValue: _selectedType,
-                  onChanged: isLocked ? null : (v) => setState(() => _selectedType = v!),
-                ),
-                _buildPlanRadio("วัน", 'day', 1, _dayController, isLocked),
-                _buildPlanRadio("สัปดาห์", 'week', 7, _weekController, isLocked),
-                _buildPlanRadio("เดือน", 'month', 30, _monthController, isLocked),
-                _buildPlanRadio("ปี", 'year', 365, _yearController, isLocked),
-              ] else ...[
-                _buildEditModeCountdown(),
-              ],
+                value: 'today', 
+                groupValue: _selectedType,
+                onChanged: isLocked ? null : (v) => setState(() => _selectedType = v!),
+              ),
+              _buildPlanRadio("วัน", 'day', 1, _dayController, isLocked),
+              _buildPlanRadio("สัปดาห์", 'week', 7, _weekController, isLocked),
+              _buildPlanRadio("เดือน", 'month', 30, _monthController, isLocked),
+              _buildPlanRadio("ปี", 'year', 365, _yearController, isLocked),
             ],
 
             const SizedBox(height: 30),
@@ -286,13 +282,13 @@ class _DailyDetailViewState extends State<DailyDetailView> {
 
                     final vm = context.read<DailyDetailViewModel>();
                     
-                    // ตรวจสอบเวลาทับกัน
+                    // ตรวจสอบเวลาทับกัน โดยใช้ ID ของ _currentEvent เพื่อข้ามการเช็คตัวเอง
                     String? errorMsg = vm.checkTimeOverlap(
                       widget.selectedDay,
                       _startDateTime,
                       _endDateTime,
                       _isAllDay,
-                      excludeId: widget.existingEvent?.id,
+                      excludeId: _currentEvent?.id,
                     );
                     
                     if (errorMsg != null) {
@@ -303,15 +299,13 @@ class _DailyDetailViewState extends State<DailyDetailView> {
                     }
 
                     DateTime? savingStart;
-                    if (widget.existingEvent != null && widget.existingEvent!.savingStartDate != null) {
-                      // ถ้าเป็นการแก้ไขและมีวันเริ่มออมเดิมอยู่แล้ว ให้ใช้ค่าเดิม (เพื่อไม่ให้ยอดออมต่อวันเปลี่ยน)
-                      savingStart = widget.existingEvent!.savingStartDate;
-                    } else if (hasBudget) {
-                      // ถ้าสร้างใหม่ หรือเป็นการแก้ไขกิจกรรมที่เคยไม่มีงบ/ไม่มีแผนออมมาก่อน ให้คำนวณใหม่ตามแผนที่เลือก
+                    if (hasBudget) {
+                      // สามารถเปลี่ยนแผนการออมได้ตลอดเวลา โดยจะคำนวณวันเริ่มออมใหม่ตามที่เลือก
                       savingStart = _calculateSavingStartDate();
                     }
 
-                    String eventId = widget.existingEvent?.id ?? DateTime.now().millisecondsSinceEpoch.toString();
+                    // ใช้ ID เดิมจาก _currentEvent ถ้ามี (เพื่อรองรับการกดเซฟซ้ำๆ หลังสร้างใหม่)
+                    String eventId = _currentEvent?.id ?? DateTime.now().millisecondsSinceEpoch.toString();
 
                     final newEvent = DailyDetailModel(
                       id: eventId,
@@ -321,7 +315,7 @@ class _DailyDetailViewState extends State<DailyDetailView> {
                       isAllDay: _isAllDay,
                       startTime: _startDateTime,
                       endTime: _endDateTime,
-                      amountSaved: widget.existingEvent?.amountSaved ?? 0,
+                      amountSaved: _currentEvent?.amountSaved ?? 0,
                     );
 
                     vm.addOrUpdateEvent(newEvent);
@@ -442,45 +436,6 @@ class _DailyDetailViewState extends State<DailyDetailView> {
       int mult = _selectedType == 'year' ? 365 : (_selectedType == 'week' ? 7 : (_selectedType == 'month' ? 30 : 1));
       return selectedDayOnly.subtract(Duration(days: _customValue * mult));
     }
-  }
-
-  Widget _buildEditModeCountdown() {
-    int daysLeft = _calculateTotalDays();
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.orange.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.orange.shade200),
-      ),
-      child: Column(
-        children: [
-          Text("สถานะกิจกรรมตอนนี้", style: TextStyle(color: Colors.orange.shade900, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          RichText(
-            text: TextSpan(
-              style: const TextStyle(color: Colors.black87, fontSize: 16),
-              children: [
-                const TextSpan(text: "เหลือเวลาอีก "),
-                TextSpan(
-                  text: "$daysLeft วัน ",
-                  style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 20),
-                ),
-                const TextSpan(text: "จะถึงวันกิจกรรม"),
-              ],
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            "(คุณสามารถแก้ไขงบประมาณได้ ระบบจะคำนวณยอดออมใหม่ตามวันที่เหลือ)",
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12, color: Colors.grey),
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _buildPlanRadio(String label, String type, int multiplier, TextEditingController controller, bool isLocked) {
