@@ -144,6 +144,12 @@ class _HomeViewState extends State<HomeView> {
           MaterialPageRoute(builder: (context) => EventListView(selectedDay: selectedDay)),
         );
       },
+      onPageChanged: (focusedDay) {
+        // อัปเดตหัวข้อเดือน ปี เมื่อมีการปัดเปลี่ยนหน้าปฏิทิน
+        setState(() {
+          _focusedDay = focusedDay;
+        });
+      },
       calendarBuilders: CalendarBuilders(
         markerBuilder: (context, date, events) => const SizedBox(),
         defaultBuilder: (context, day, focusedDay) => _buildCell(day, dailyVM),
@@ -295,16 +301,34 @@ class _HomeViewState extends State<HomeView> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 2),
       decoration: BoxDecoration(
-        color: isSelected ? Colors.blue.withOpacity(0.1) : (isToday ? Colors.orange.withOpacity(0.1) : null),
-        border: Border.all(color: Colors.grey.shade200, width: 0.5),
+        color: isSelected ? Colors.grey.shade100 : null, // ลงสีเทาจางๆ เต็มช่อง
+        border: Border.all(color: Colors.grey.shade100, width: 0.5),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // แทรกวันที่กลับมา (ปรับขนาดเล็กและชิดซ้ายบน)
-          Padding(
-            padding: const EdgeInsets.only(top: 2, left: 2),
-            child: Text('${day.day}', style: TextStyle(color: isOutside ? Colors.grey : Colors.black87, fontSize: 11)),
+          // ส่วนตัวเลขวันที่ (ชิดบน ตรงกลาง พร้อมไฮไลท์วงกลมเฉพาะ "วันนี้")
+          Container(
+            margin: const EdgeInsets.only(top: 4),
+            width: 28,
+            height: 28,
+            alignment: Alignment.center,
+            decoration: isToday 
+              ? const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.black,
+                )
+              : null,
+            child: Text(
+              '${day.day}',
+              style: TextStyle(
+                color: isToday 
+                  ? Colors.white 
+                  : (isOutside ? Colors.grey : Colors.black87),
+                fontSize: 13,
+                fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
           ),
           
           // 1. ยอดออมสีแดง (ดันให้ห่างจากตัวเลขวัน)
