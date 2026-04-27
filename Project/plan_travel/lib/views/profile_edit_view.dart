@@ -169,8 +169,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
                     }
                     widget.onSave(_nameController.text, _tempPhotoUrl);
                   },
-                  icon: const Icon(Icons.cloud_done),
-                  label: const Text("บันทึก Cloud"),
+                  label: const Text("บันทึก"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
                     foregroundColor: Colors.white,

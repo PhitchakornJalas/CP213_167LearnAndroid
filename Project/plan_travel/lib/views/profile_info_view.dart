@@ -57,10 +57,7 @@ class ProfileInfoView extends StatelessWidget {
           // _buildInfoCard("อีเมล", profile.email ?? "ไม่ได้ระบุ"),
           
           const SizedBox(height: 40),
-          const Text(
-            "ข้อมูลนี้ซิงค์กับระบบ Cloud เรียบร้อยแล้ว",
-            style: TextStyle(color: Colors.grey, fontSize: 12, fontStyle: FontStyle.italic),
-          ),
+          
         ],
       ),
     );

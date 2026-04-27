@@ -102,10 +102,6 @@ class _LoginViewState extends State<LoginView> {
               ),
             
             const SizedBox(height: 20),
-            const Text(
-              'ปลอดภัย มั่นใจ ข้อมูลซิงค์ผ่าน Cloud',
-              style: TextStyle(color: Colors.grey, fontSize: 12),
-            ),
           ],
         ),
       ),

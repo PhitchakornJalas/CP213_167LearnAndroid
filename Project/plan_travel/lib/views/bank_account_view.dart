@@ -56,7 +56,7 @@ class _BankAccountViewState extends State<BankAccountView> {
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("บันทึกข้อมูลลง Cloud เรียบร้อยแล้ว"), backgroundColor: Colors.green),
+        const SnackBar(content: Text("บันทึกข้อมูลเรียบร้อยแล้ว"), backgroundColor: Colors.green),
       );
     }
   }
@@ -171,8 +171,7 @@ class _BankAccountViewState extends State<BankAccountView> {
                 const SizedBox(height: 25),
                 ElevatedButton.icon(
                   onPressed: () => _saveData(vm),
-                  icon: const Icon(Icons.cloud_upload),
-                  label: const Text("บันทึกลง Cloud"),
+                  label: const Text("บันทึก"),
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 55),
                     backgroundColor: Colors.green.shade700,
@@ -191,11 +190,7 @@ class _BankAccountViewState extends State<BankAccountView> {
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 40),
                   child: Center(
-                    child: Text(
-                      "ข้อมูลนี้ซิงค์กับ Cloud Firestore เรียบร้อยแล้ว",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey, fontSize: 13, fontStyle: FontStyle.italic),
-                    ),
+                    
                   ),
                 ),
             ],
