@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import '../viewmodels/profile_viewmodel.dart';
 
 class BankAccountView extends StatefulWidget {
   const BankAccountView({super.key});
@@ -13,12 +14,14 @@ class _BankAccountViewState extends State<BankAccountView> {
   final TextEditingController _aliasController = TextEditingController();
   final TextEditingController _promptPayController = TextEditingController();
   
-  bool _isEditing = true; // สถานะว่ากำลังแก้ไขอยู่หรือไม่ (Default เป็น true สำหรับครั้งแรก)
+  bool _isEditing = false;
+  bool _isInitialized = false;
 
   @override
-  void initState() {
-    super.initState();
-    _loadSavedData();
+  void dispose() {
+    _aliasController.dispose();
+    _promptPayController.dispose();
+    super.dispose();
   }
 
   String _getFormattedPreview(String phone) {
@@ -32,21 +35,7 @@ class _BankAccountViewState extends State<BankAccountView> {
     return formatted;
   }
 
-  Future<void> _loadSavedData() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedAlias = prefs.getString('bank_alias') ?? "";
-    final savedPP = prefs.getString('promptpay_id') ?? "";
-
-    if (savedAlias.isNotEmpty && savedPP.isNotEmpty) {
-      setState(() {
-        _aliasController.text = savedAlias;
-        _promptPayController.text = savedPP;
-        _isEditing = false; // ถ้ามีข้อมูลอยู่แล้ว ให้ล็อกไว้ก่อน
-      });
-    }
-  }
-
-  Future<void> _saveData() async {
+  Future<void> _saveData(ProfileViewModel vm) async {
     final alias = _aliasController.text.trim();
     final ppId = _promptPayController.text.trim();
 
@@ -57,149 +46,161 @@ class _BankAccountViewState extends State<BankAccountView> {
       return;
     }
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('bank_alias', alias);
-    await prefs.setString('promptpay_id', ppId);
-
-    setState(() {
-      _isEditing = false; // บันทึกเสร็จแล้วให้ล็อก
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("บันทึกข้อมูลเรียบร้อยแล้ว"), backgroundColor: Colors.green),
+    await vm.saveProfile(
+      nickname: vm.profile?.nickname ?? 'นักเดินทาง',
+      accountName: alias,
+      promptPay: ppId,
     );
+
+    setState(() => _isEditing = false);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("บันทึกข้อมูลลง Cloud เรียบร้อยแล้ว"), backgroundColor: Colors.green),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("จัดการบัญชีธนาคาร")),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // 1. กล่องสีน้ำเงิน (แสดงผลตลอดเวลา)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade900,
-              borderRadius: BorderRadius.circular(15),
-              boxShadow: const [
-                BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 4))
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text("พร้อมเพย์สำหรับรับเงินออม", 
-                        style: TextStyle(color: Colors.white70, fontSize: 12)),
-                    // แสดงปุ่มปากกาเฉพาะตอนที่ "ไม่ได้แก้ไขอยู่"
-                    if (!_isEditing)
-                      IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.white, size: 22),
-                        onPressed: () => setState(() => _isEditing = true),
-                        constraints: const BoxConstraints(),
-                        padding: EdgeInsets.zero,
-                      ),
+      body: Consumer<ProfileViewModel>(
+        builder: (context, vm, child) {
+          final profile = vm.profile;
+
+          // กำหนดค่าเริ่มต้นครั้งแรกที่โหลดข้อมูลมาได้
+          if (!_isInitialized && profile != null) {
+            _aliasController.text = profile.accountName ?? "";
+            _promptPayController.text = profile.promptPay ?? "";
+            if (_aliasController.text.isEmpty) _isEditing = true;
+            _isInitialized = true;
+          }
+
+          if (profile == null) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // 1. กล่องแสดงผล (Card)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade900,
+                  borderRadius: BorderRadius.circular(15),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 4))
                   ],
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  _getFormattedPreview(_promptPayController.text),
-                  style: const TextStyle(
-                    color: Colors.white, 
-                    fontSize: 32, // ปรับให้ใหญ่ขึ้นเพราะพื้นที่เยอะขึ้น
-                    fontWeight: FontWeight.bold, 
-                    letterSpacing: 1.5
-                  )
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text("พร้อมเพย์สำหรับรับเงินออม", 
+                            style: TextStyle(color: Colors.white70, fontSize: 12)),
+                        if (!_isEditing)
+                          IconButton(
+                            icon: const Icon(Icons.edit, color: Colors.white, size: 22),
+                            onPressed: () => setState(() => _isEditing = true),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      _getFormattedPreview(_promptPayController.text),
+                      style: const TextStyle(
+                        color: Colors.white, 
+                        fontSize: 32, 
+                        fontWeight: FontWeight.bold, 
+                        letterSpacing: 1.5
+                      )
+                    ),
+                    const SizedBox(height: 25),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _aliasController.text.isEmpty ? "ยังไม่ได้กำหนดชื่อ" : _aliasController.text, 
+                          style: const TextStyle(color: Colors.white, fontSize: 18)
+                        ),
+                        const Icon(Icons.qr_code_2, color: Colors.white, size: 30),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 30),
+
+              // 2. ส่วนแก้ไขข้อมูล
+              if (_isEditing) ...[
+                const Text("แก้ไขข้อมูลบัญชี", 
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                const SizedBox(height: 15),
+                TextField(
+                  controller: _aliasController,
+                  onChanged: (v) => setState(() {}),
+                  decoration: const InputDecoration(
+                    labelText: "ชื่อเรียกบัญชี",
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.label_important_outline),
+                  ),
+                ),
+                const SizedBox(height: 15),
+                TextField(
+                  controller: _promptPayController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(10),
+                  ],
+                  onChanged: (v) => setState(() {}),
+                  decoration: InputDecoration(
+                    labelText: "เบอร์โทรศัพท์พร้อมเพย์",
+                    hintText: "0812345678",
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.phone_android),
+                    counterText: "${_promptPayController.text.length}/10",
+                  ),
                 ),
                 const SizedBox(height: 25),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      _aliasController.text.isEmpty ? "ชื่อบัญชี" : _aliasController.text, 
-                      style: const TextStyle(color: Colors.white, fontSize: 18)
+                ElevatedButton.icon(
+                  onPressed: () => _saveData(vm),
+                  icon: const Icon(Icons.cloud_upload),
+                  label: const Text("บันทึกลง Cloud"),
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 55),
+                    backgroundColor: Colors.green.shade700,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                if (profile.accountName != null)
+                  TextButton(
+                    onPressed: () => setState(() => _isEditing = false), 
+                    child: const Text("ยกเลิก", style: TextStyle(color: Colors.grey))
+                  ),
+              ],
+              
+              if (!_isEditing)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 40),
+                  child: Center(
+                    child: Text(
+                      "ข้อมูลนี้ซิงค์กับ Cloud Firestore เรียบร้อยแล้ว",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey, fontSize: 13, fontStyle: FontStyle.italic),
                     ),
-                    const Icon(Icons.qr_code_2, color: Colors.white, size: 30),
-                  ],
+                  ),
                 ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 30),
-
-          // 2. ส่วนช่องกรอก (จะแสดงเฉพาะตอน _isEditing == true เท่านั้น)
-          if (_isEditing) ...[
-            const Text("แก้ไขข้อมูลบัญชี", 
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
-            const SizedBox(height: 15),
-            TextField(
-              controller: _aliasController,
-              onChanged: (v) => setState(() {}),
-              decoration: const InputDecoration(
-                labelText: "ชื่อเรียกบัญชี",
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.label_important_outline),
-              ),
-            ),
-            const SizedBox(height: 15),
-            TextField(
-              controller: _promptPayController,
-              keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(10),
-              ],
-              onChanged: (v) => setState(() {}),
-              decoration: InputDecoration(
-                labelText: "เบอร์โทรศัพท์พร้อมเพย์",
-                hintText: "0812345678",
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.phone_android),
-                counterText: "${_promptPayController.text.length}/10",
-              ),
-            ),
-            const SizedBox(height: 25),
-            ElevatedButton.icon(
-              onPressed: _saveData,
-              icon: const Icon(Icons.check_circle),
-              label: const Text("ยืนยันการบันทึก"),
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 55),
-                backgroundColor: Colors.green.shade700,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-            const SizedBox(height: 10),
-            // เพิ่มปุ่มยกเลิก (ในกรณีที่ไม่อยากแก้แล้ว)
-            TextButton(
-              onPressed: () {
-                _loadSavedData(); // โหลดค่าเดิมกลับมา
-                setState(() => _isEditing = false);
-              }, 
-              child: const Text("ยกเลิกการแก้ไข", style: TextStyle(color: Colors.grey))
-            ),
-          ],
-          
-          // ถ้าบันทึกแล้ว อาจจะโชว์คำแนะนำเล็กๆ แทน
-          if (!_isEditing)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 40),
-              child: Center(
-                child: Text(
-                  "ข้อมูลพร้อมเพย์นี้จะถูกใช้เพื่อสร้าง QR Code ออมเงินของคุณ",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey, fontSize: 13, fontStyle: FontStyle.italic),
-                ),
-              ),
-            ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }

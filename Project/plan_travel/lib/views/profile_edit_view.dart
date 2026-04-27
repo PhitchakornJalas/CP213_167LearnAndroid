@@ -24,7 +24,7 @@ class ProfileEditView extends StatefulWidget {
 
 class _ProfileEditViewState extends State<ProfileEditView> {
   late TextEditingController _nameController;
-  String? _tempImagePath;
+  String? _tempPhotoUrl;
 
   @override
   void initState() {
@@ -32,7 +32,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     
     String initialNickname = widget.currentProfile.nickname;
     
-    // ถ้าชื่อเล่นเป็นค่าเริ่มต้น (นักเดินทาง) ให้ลองดึงชื่อจาก Gmail มาใส่ให้แทน
+    // Fallback สำหรับชื่อจาก Gmail
     if (initialNickname == 'นักเดินทาง') {
       final user = FirebaseAuth.instance.currentUser;
       if (user?.displayName != null && user!.displayName!.isNotEmpty) {
@@ -41,7 +41,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     }
 
     _nameController = TextEditingController(text: initialNickname);
-    _tempImagePath = widget.currentProfile.profileImagePath;
+    _tempPhotoUrl = widget.currentProfile.photoUrl;
   }
 
   @override
@@ -54,7 +54,16 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     final vm = context.read<ProfileViewModel>();
     final path = await vm.pickImage(source);
     if (path != null) {
-      setState(() => _tempImagePath = path);
+      setState(() => _tempPhotoUrl = path);
+    }
+  }
+
+  ImageProvider? _buildImageProvider(String? path) {
+    if (path == null) return null;
+    if (path.startsWith('http')) {
+      return NetworkImage(path);
+    } else {
+      return FileImage(File(path));
     }
   }
 
@@ -104,10 +113,8 @@ class _ProfileEditViewState extends State<ProfileEditView> {
                 CircleAvatar(
                   radius: 70,
                   backgroundColor: Colors.grey.shade200,
-                  backgroundImage: _tempImagePath != null
-                      ? FileImage(File(_tempImagePath!))
-                      : null,
-                  child: _tempImagePath == null
+                  backgroundImage: _buildImageProvider(_tempPhotoUrl),
+                  child: _tempPhotoUrl == null
                       ? Icon(Icons.person, size: 80, color: Colors.grey.shade400)
                       : null,
                 ),
@@ -152,7 +159,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: ElevatedButton(
+                child: ElevatedButton.icon(
                   onPressed: () {
                     if (_nameController.text.trim().isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -160,15 +167,16 @@ class _ProfileEditViewState extends State<ProfileEditView> {
                       );
                       return;
                     }
-                    widget.onSave(_nameController.text, _tempImagePath);
+                    widget.onSave(_nameController.text, _tempPhotoUrl);
                   },
+                  icon: const Icon(Icons.cloud_done),
+                  label: const Text("บันทึก Cloud"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: const Text("บันทึก"),
                 ),
               ),
             ],

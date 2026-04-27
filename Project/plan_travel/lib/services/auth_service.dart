@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:io';
@@ -33,7 +34,21 @@ class AuthService {
 
       // 4. เข้าสู่ระบบ Firebase
       final UserCredential userCredential = await _auth.signInWithCredential(credential);
-      return userCredential.user;
+      final User? user = userCredential.user;
+
+      if (user != null) {
+        // 5. เช็คและสร้างเอกสารเริ่มต้นใน Firestore
+        final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        if (!doc.exists) {
+          await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+            'nickname': user.displayName ?? 'นักเดินทาง',
+            'email': user.email,
+            'photoUrl': user.photoURL,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        }
+      }
+      return user;
     } catch (error) {
       print('Firebase Google Sign In Error: $error');
       return null;

@@ -1,25 +1,51 @@
 class ProfileModel {
   final String nickname;
-  final String? profileImagePath;
+  final String? photoUrl; // เปลี่ยนจาก profileImagePath เป็น photoUrl ตาม Schema
+  final String? accountName;
+  final String? promptPay;
+  final String? email;
 
   ProfileModel({
     required this.nickname,
-    this.profileImagePath,
+    this.photoUrl,
+    this.accountName,
+    this.promptPay,
+    this.email,
   });
 
-  // แปลงเป็น Map สำหรับบันทึกลง SharedPreferences (หรือ JSON)
   Map<String, dynamic> toMap() {
     return {
       'nickname': nickname,
-      'profileImagePath': profileImagePath,
+      'photoUrl': photoUrl,
+      'accountName': accountName,
+      'promptPay': promptPay,
+      'email': email,
     };
   }
 
-  // สร้าง Object จาก Map
   factory ProfileModel.fromMap(Map<String, dynamic> map) {
     return ProfileModel(
-      nickname: map['nickname'] ?? '',
-      profileImagePath: map['profileImagePath'],
+      nickname: map['nickname'] ?? 'นักเดินทาง',
+      photoUrl: map['photoUrl'],
+      accountName: map['accountName'],
+      promptPay: map['promptPay'],
+      email: map['email'],
+    );
+  }
+
+  ProfileModel copyWith({
+    String? nickname,
+    String? photoUrl,
+    String? accountName,
+    String? promptPay,
+    String? email,
+  }) {
+    return ProfileModel(
+      nickname: nickname ?? this.nickname,
+      photoUrl: photoUrl ?? this.photoUrl,
+      accountName: accountName ?? this.accountName,
+      promptPay: promptPay ?? this.promptPay,
+      email: email ?? this.email,
     );
   }
 }

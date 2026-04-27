@@ -31,18 +31,36 @@ class DailyDetailInfoView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("รายละเอียดงบประมาณ", style: TextStyle(color: Colors.grey, fontSize: 13)),
-        const SizedBox(height: 10),
-        ...event.budgetItems.where((item) => item.amount > 0).map((item) {
+        const Text("รายละเอียดงบประมาณและการออม", style: TextStyle(color: Colors.grey, fontSize: 13)),
+        const SizedBox(height: 15),
+        ...event.budgetItems.where((item) => item.targetAmount > 0).map((item) {
+          double progress = item.targetAmount > 0 ? item.savedAmount / item.targetAmount : 0;
+          if (progress > 1.0) progress = 1.0;
+
           return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            padding: const EdgeInsets.only(bottom: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.label.isEmpty ? "ไม่ได้ระบุชื่อ" : item.label, 
-                     style: const TextStyle(fontSize: 16)),
-                Text("${item.amount.toInt()} ฿", 
-                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(item.label.isEmpty ? "ไม่ได้ระบุชื่อ" : item.label, 
+                         style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                    Text("${item.savedAmount.toInt()} / ${item.targetAmount.toInt()} ฿", 
+                         style: const TextStyle(fontSize: 14, color: Colors.blueGrey)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 10,
+                    backgroundColor: Colors.grey.shade200,
+                    color: progress >= 1.0 ? Colors.green : Colors.blue,
+                  ),
+                ),
               ],
             ),
           );
@@ -52,7 +70,8 @@ class DailyDetailInfoView extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text("รวมยอดออมทั้งหมด", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            Text("${event.totalBudget.toInt()} ฿", style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 18)),
+            Text("${event.totalSaved.toInt()} / ${event.totalBudget.toInt()} ฿", 
+                 style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 18)),
           ],
         ),
       ],

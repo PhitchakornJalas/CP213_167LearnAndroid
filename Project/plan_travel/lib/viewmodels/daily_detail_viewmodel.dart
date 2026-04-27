@@ -1,91 +1,61 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/daily_detail_model.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../services/firebase_service.dart';
 
 class DailyDetailViewModel extends ChangeNotifier {
-  // เปลี่ยนเป็น List เพื่อให้ 1 วันมีหลาย Event
-  final Map<DateTime, List<DailyDetailModel>> _dailyDetails = {};
-  Map<DateTime, List<DailyDetailModel>> get dailyDetails => _dailyDetails;
+  final FirebaseService _firebaseService;
+  List<DailyDetailModel> _allEvents = [];
+  StreamSubscription? _eventsSubscription;
+  bool _isLoading = true; // เพิ่มสถานะ Loading
+  String? _errorMessage; // เพิ่มตัวแปรเก็บ Error
 
-  // เก็บประวัติ: วันไหน (DateTime) กิจกรรมไหน (String ID) ออมไปเท่าไหร่แล้ว
-  Map<DateTime, Map<String, double>> _dailySavingsRecords = {};
+  DailyDetailViewModel(this._firebaseService) {
+    _listenToEvents();
+  }
 
-  String savedPromptPay = "";
-  String savedAlias = "";
+  bool get isLoading => _isLoading;
+  String? get errorMessage => _errorMessage;
 
-  Future<void> loadBankInfo() async {
-    final prefs = await SharedPreferences.getInstance();
-    savedPromptPay = prefs.getString('promptpay_id') ?? "";
-    savedAlias = prefs.getString('bank_alias') ?? "";
+  // ดึงข้อมูล Real-time จาก Firestore
+  void _listenToEvents() {
+    _eventsSubscription?.cancel();
+    _isLoading = true;
+    _errorMessage = null;
     notifyListeners();
-  }
 
-  // โชว์ทั้งหมดกลับมา
-  List<DailyDetailModel> getEventsForDay(DateTime date) {
-    final dayOnly = DateTime(date.year, date.month, date.day);
-    final events = _dailyDetails[dayOnly] ?? [];
-    
-    final allEvents = List<DailyDetailModel>.from(events);
-    allEvents.sort((a, b) {
-      if (a.isAllDay) return -1;
-      if (b.isAllDay) return 1;
-      return a.startTime.compareTo(b.startTime);
-    });
-    return allEvents;
-  }
-
-  // โชว์เฉพาะอันที่ "ยังไม่ออมแบบเต็ม" บนปฏิทิน
-  List<DailyDetailModel> getPendingEvents(DateTime day) {
-    final dayOnly = DateTime(day.year, day.month, day.day);
-    final events = _dailyDetails[dayOnly] ?? [];
-    
-    final incompleteEvents = events.where((e) {
-      double budgetVal = e.totalBudget;
-      return e.amountSaved < budgetVal;
-    }).toList();
-
-    incompleteEvents.sort((a, b) {
-      if (a.isAllDay) return -1;
-      if (b.isAllDay) return 1;
-      return a.startTime.compareTo(b.startTime);
-    });
-    return incompleteEvents;
-  }
-
-  void confirmSaving(DateTime currentDay, String eventId, double amount) {
-    final day = DateTime(currentDay.year, currentDay.month, currentDay.day);
-    
-    // 1. บันทึกว่าวันนี้กิจกรรมนี้ออมแล้ว
-    if (!_dailySavingsRecords.containsKey(day)) _dailySavingsRecords[day] = {};
-    _dailySavingsRecords[day]![eventId] = amount;
-
-    // 2. อัปเดตยอดสะสมรวมของ Event นั้นๆ
-    for (var list in _dailyDetails.values) {
-      for (var event in list) {
-        if (event.id == eventId) {
-          event.amountSaved += amount;
-        }
+    _eventsSubscription = _firebaseService.eventsStream.listen(
+      (events) {
+        _allEvents = events;
+        _isLoading = false;
+        _errorMessage = null;
+        notifyListeners();
+      },
+      onError: (error) {
+        debugPrint("Firestore Stream Error: $error");
+        _isLoading = false;
+        _errorMessage = error.toString();
+        notifyListeners();
       }
-    }
-    notifyListeners();
+    );
   }
 
-  bool isEventSavedToday(DateTime date, String eventId) {
-    final day = DateTime(date.year, date.month, date.day);
-    return _dailySavingsRecords[day]?.containsKey(eventId) ?? false;
+  // --- Helpers สำหรับ UI ---
+
+  List<DailyDetailModel> getEventsForDay(DateTime date) {
+    return _allEvents.where((e) => isSameDay(e.startTime, date)).toList()
+      ..sort((a, b) {
+        if (a.isAllDay) return -1;
+        if (b.isAllDay) return 1;
+        return a.startTime.compareTo(b.startTime);
+      });
   }
 
-  // เช็คว่าเวลาทับกันหรือไม่
   String? checkTimeOverlap(DateTime date, DateTime start, DateTime end, bool isAllDay, {String? excludeId}) {
     final events = getEventsForDay(date);
-    
     for (var event in events) {
       if (event.id == excludeId) continue;
-      
-      // ถ้ามีกิจกรรม "ตลอดวัน" อยู่แล้ว หรือกำลังจะเพิ่ม "ตลอดวัน"
       if (event.isAllDay || isAllDay) return "ไม่สามารถเพิ่มกิจกรรมได้เนื่องจากมีกิจกรรมตลอดวันครอบคลุมอยู่";
-
-      // เช็คช่วงเวลาทับกัน
       if (start.isBefore(event.endTime) && end.isAfter(event.startTime)) {
         return "ช่วงเวลาทับกับกิจกรรม: ${event.title}";
       }
@@ -93,87 +63,86 @@ class DailyDetailViewModel extends ChangeNotifier {
     return null;
   }
 
-  void addOrUpdateEvent(DailyDetailModel newEvent) {
-    final newDay = DateTime(newEvent.startTime.year, newEvent.startTime.month, newEvent.startTime.day);
-    
-    // ค้นหาและลบตัวเดิมออกก่อน (เพื่อรองรับการย้ายวัน)
-    _dailyDetails.forEach((date, list) {
-      list.removeWhere((e) => e.id == newEvent.id);
-    });
-
-    if (!_dailyDetails.containsKey(newDay)) _dailyDetails[newDay] = [];
-    _dailyDetails[newDay]!.add(newEvent);
-    
-    notifyListeners();
-  }
-
-  // คำนวณยอดออมรวม (วนลูปทุก Event ในทุกวัน)
-  double getTotalSavingAmount(DateTime date) {
-    double total = 0;
-    final calendarDay = DateTime(date.year, date.month, date.day);
-
-    _dailyDetails.forEach((targetDate, events) {
-      for (var detail in events) {
-        if (detail.savingStartDate == null || detail.totalBudget == 0) continue;
-
-        final start = DateTime(detail.savingStartDate!.year, detail.savingStartDate!.month, detail.savingStartDate!.day);
-        final eventDay = DateTime(targetDate.year, targetDate.month, targetDate.day);
-
-        if ((calendarDay.isAtSameMomentAs(start) || calendarDay.isAfter(start)) && calendarDay.isBefore(eventDay)) {
-          double budgetVal = detail.totalBudget;
-          int totalDays = eventDay.difference(start).inDays;
-          
-          if (totalDays > 0) {
-            double dailyAmount = (budgetVal / totalDays).ceilToDouble();
-            // หักลบยอดที่กดออมไปแล้วในวันนี้
-            double alreadySavedToday = _dailySavingsRecords[calendarDay]?[detail.id] ?? 0;
-            total += (dailyAmount - alreadySavedToday);
-          }
-        }
-      }
-    });
-    return total > 0 ? total : 0;
-  }
-
   List<Map<String, dynamic>> getSavingsBreakdownForDay(DateTime date) {
     List<Map<String, dynamic>> breakdown = [];
     final calendarDay = DateTime(date.year, date.month, date.day);
 
-    _dailyDetails.forEach((targetDate, events) {
-      for (var detail in events) {
-        if (detail.savingStartDate != null && detail.totalBudget > 0) {
-          final start = DateTime(detail.savingStartDate!.year, detail.savingStartDate!.month, detail.savingStartDate!.day);
-          final eventDay = DateTime(targetDate.year, targetDate.month, targetDate.day);
+    for (var event in _allEvents) {
+      if (event.totalBudget == 0) continue;
 
-          // ตรวจสอบว่าเป็นช่วงวันที่ต้องออมของกิจกรรมนี้หรือไม่
-          if ((calendarDay.isAtSameMomentAs(start) || calendarDay.isAfter(start)) &&
-              calendarDay.isBefore(eventDay)) {
-            
-            double budgetVal = detail.totalBudget;
-            int totalSavingDays = eventDay.difference(start).inDays;
-            
-            if (totalSavingDays > 0) {
-              // ปัดเศษขึ้นตามที่ตกลงกันไว้
-              double amountPerEvent = (budgetVal / totalSavingDays).ceilToDouble();
-              
-              breakdown.add({
-                'id': detail.id,
-                'title': detail.title,
-                'amount': amountPerEvent,
-                'targetDate': targetDate, // วันที่จะจัดกิจกรรมนี้
-                'isAllDay': detail.isAllDay, 
-                'startTime': detail.startTime, 
-                'endTime': detail.endTime, 
-                'amountSaved': detail.amountSaved,
-                'budget': detail.totalBudget,
-                'budgetItems': detail.budgetItems,
-                'savingStartDate': detail.savingStartDate,
-              });
-            }
-          }
+      final effectiveStart = event.savingStartDate ?? event.createdAt;
+      final start = DateTime(effectiveStart.year, effectiveStart.month, effectiveStart.day);
+      final eventDay = DateTime(event.startTime.year, event.startTime.month, event.startTime.day);
+
+      if ((calendarDay.isAtSameMomentAs(start) || calendarDay.isAfter(start)) && calendarDay.isBefore(eventDay)) {
+        int totalSavingDays = eventDay.difference(start).inDays;
+        if (totalSavingDays > 0) {
+          double amountPerEvent = (event.totalBudget / totalSavingDays).ceilToDouble();
+          breakdown.add({
+            'id': event.id,
+            'title': event.title,
+            'amount': amountPerEvent,
+            'event': event,
+          });
         }
       }
-    });
+    }
     return breakdown;
+  }
+
+  double getTotalSavingAmount(DateTime date) {
+    return getSavingsBreakdownForDay(date).fold(0.0, (sum, item) => sum + item['amount']);
+  }
+
+  // --- CRUD Operations ---
+
+  Future<void> addOrUpdateEvent(DailyDetailModel event) async {
+    try {
+      await _firebaseService.saveEvent(event);
+    } catch (e) {
+      debugPrint("Save Event Error: $e");
+    }
+  }
+
+  Future<void> deleteEvent(String eventId) async {
+    try {
+      await _firebaseService.deleteEvent(eventId);
+    } catch (e) {
+      debugPrint("Delete Event Error: $e");
+    }
+  }
+
+  Future<void> confirmSaving(String eventId, double amount) async {
+    final eventIndex = _allEvents.indexWhere((e) => e.id == eventId);
+    if (eventIndex != -1) {
+      final event = _allEvents[eventIndex];
+      
+      double remainingAmount = amount;
+      for (var item in event.budgetItems) {
+        double needed = item.targetAmount - item.savedAmount;
+        if (needed > 0) {
+          double toAdd = remainingAmount > needed ? needed : remainingAmount;
+          item.savedAmount += toAdd;
+          remainingAmount -= toAdd;
+        }
+        if (remainingAmount <= 0) break;
+      }
+      
+      if (remainingAmount > 0 && event.budgetItems.isNotEmpty) {
+        event.budgetItems[0].savedAmount += remainingAmount;
+      }
+
+      await _firebaseService.saveEvent(event);
+    }
+  }
+
+  bool isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  @override
+  void dispose() {
+    _eventsSubscription?.cancel();
+    super.dispose();
   }
 }

@@ -26,7 +26,9 @@ class _ProfileMainViewState extends State<ProfileMainView> {
       ),
       body: Consumer<ProfileViewModel>(
         builder: (context, vm, child) {
-          if (vm.profile == null) {
+          final profile = vm.profile;
+          
+          if (profile == null) {
             return const Center(child: CircularProgressIndicator());
           }
 
@@ -34,20 +36,23 @@ class _ProfileMainViewState extends State<ProfileMainView> {
             duration: const Duration(milliseconds: 300),
             child: _isEditing
                 ? ProfileEditView(
-                    currentProfile: vm.profile!,
-                    onSave: (nickname, imagePath) async {
-                      await vm.saveProfile(nickname, imagePath);
+                    currentProfile: profile,
+                    onSave: (nickname, photoUrl) async {
+                      await vm.saveProfile(
+                        nickname: nickname, 
+                        photoUrl: photoUrl,
+                      );
                       setState(() => _isEditing = false);
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('บันทึกข้อมูลสำเร็จ'), backgroundColor: Colors.green),
+                          const SnackBar(content: Text('บันทึกข้อมูลลง Cloud สำเร็จ'), backgroundColor: Colors.green),
                         );
                       }
                     },
                     onCancel: () => setState(() => _isEditing = false),
                   )
                 : ProfileInfoView(
-                    profile: vm.profile!,
+                    profile: profile,
                     onEdit: () => setState(() => _isEditing = true),
                   ),
           );

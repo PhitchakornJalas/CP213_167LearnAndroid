@@ -212,7 +212,7 @@ class _HomeViewState extends State<HomeView> {
                           child: FittedBox(
                             fit: BoxFit.scaleDown,
                             child: Text(
-                              '${event.amountSaved.toInt()} / ${budgetVal.toInt()} บ.',
+                              '${event.totalSaved.toInt()} / ${budgetVal.toInt()} บ.',
                               style: const TextStyle(
                                 color: Colors.green,
                                 fontSize: 9,

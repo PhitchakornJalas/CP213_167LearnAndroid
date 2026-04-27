@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/profile_model.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class ProfileInfoView extends StatelessWidget {
   final ProfileModel profile;
@@ -33,10 +32,8 @@ class ProfileInfoView extends StatelessWidget {
                   child: CircleAvatar(
                     radius: 70,
                     backgroundColor: Colors.grey.shade200,
-                    backgroundImage: profile.profileImagePath != null
-                        ? FileImage(File(profile.profileImagePath!))
-                        : null,
-                    child: profile.profileImagePath == null
+                    backgroundImage: _buildImageProvider(profile.photoUrl),
+                    child: profile.photoUrl == null
                         ? Icon(Icons.person, size: 80, color: Colors.grey.shade400)
                         : null,
                   ),
@@ -55,52 +52,55 @@ class ProfileInfoView extends StatelessWidget {
           const SizedBox(height: 30),
           
           // ข้อมูลชื่อเล่น
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "ชื่อเล่น",
-                  style: TextStyle(color: Colors.grey, fontSize: 14),
-                ),
-                const SizedBox(height: 8),
-                Builder(
-                  builder: (context) {
-                    String displayName = profile.nickname;
-                    // ถ้ายังเป็นค่าเริ่มต้น ให้ลองดึงจาก Firebase
-                    if (displayName == 'นักเดินทาง') {
-                      final user = FirebaseAuth.instance.currentUser;
-                      if (user?.displayName != null && user!.displayName!.isNotEmpty) {
-                        displayName = user.displayName!;
-                      }
-                    }
-                    return Text(
-                      displayName.isEmpty ? "ยังไม่ได้ตั้งชื่อ" : displayName,
-                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
+          _buildInfoCard("ชื่อเล่น", profile.nickname),
+          const SizedBox(height: 16),
+          // _buildInfoCard("อีเมล", profile.email ?? "ไม่ได้ระบุ"),
           
           const SizedBox(height: 40),
           const Text(
-            "ข้อมูลนี้จะถูกแสดงในหน้าตั้งค่าและกิจกรรมของคุณ",
-            style: TextStyle(color: Colors.grey, fontSize: 12),
+            "ข้อมูลนี้ซิงค์กับระบบ Cloud เรียบร้อยแล้ว",
+            style: TextStyle(color: Colors.grey, fontSize: 12, fontStyle: FontStyle.italic),
+          ),
+        ],
+      ),
+    );
+  }
+
+  ImageProvider? _buildImageProvider(String? path) {
+    if (path == null) return null;
+    if (path.startsWith('http')) {
+      return NetworkImage(path);
+    } else {
+      return FileImage(File(path));
+    }
+  }
+
+  Widget _buildInfoCard(String label, String value) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(color: Colors.grey, fontSize: 14),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
         ],
       ),

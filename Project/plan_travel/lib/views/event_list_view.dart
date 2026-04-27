@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/daily_detail_viewmodel.dart';
 import '../models/daily_detail_model.dart';
+import '../viewmodels/profile_viewmodel.dart';
 import 'daily_detail_view.dart';
 import 'qr_payment_view.dart';
 
@@ -12,6 +13,7 @@ class EventListView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final vm = Provider.of<DailyDetailViewModel>(context);
+    final profileVM = Provider.of<ProfileViewModel>(context);
     final events = vm.getEventsForDay(selectedDay);
     final savings = vm.getSavingsBreakdownForDay(selectedDay);
 
@@ -34,42 +36,25 @@ class EventListView extends StatelessWidget {
                 itemCount: savings.length,
                 itemBuilder: (context, index) {
                   final item = savings[index];
-                  final eventId = item['id'];
+                  final DailyDetailModel event = item['event'];
                   
-                  String timeInfo = item['isAllDay'] 
+                  String timeInfo = event.isAllDay 
                       ? "ทั้งวัน" 
-                      : "${item['startTime'].hour}:00 - ${item['endTime'].hour}:00";
+                      : "${event.startTime.hour}:00 - ${event.endTime.hour}:00";
 
-                  final bool isSavedToday = vm.isEventSavedToday(selectedDay, eventId);
+                  // เช็คว่าวันนี้ออมไปหรือยัง (ใน Firestore เราจะดูจากยอดรวมออม หรือเก็บประวัติแยกก็ได้)
+                  // เบื้องต้นให้กดออมได้เรื่อยๆ จนกว่าจะครบยอด
+                  bool isFull = event.totalSaved >= event.totalBudget;
 
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: InkWell(
-                      onTap: () {
-                        final eventModel = DailyDetailModel(
-                          id: item['id'],
-                          title: item['title'],
-                          budgetItems: item['budgetItems'],
-                          isAllDay: item['isAllDay'],
-                          startTime: item['startTime'],
-                          endTime: item['endTime'],
-                          amountSaved: item['amountSaved'] ?? 0.0,
-                          savingStartDate: item['savingStartDate'],
-                        );
-
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => DailyDetailView(
-                              selectedDay: item['targetDate'], 
-                              existingEvent: eventModel,
-                            ),
-                          ),
-                        );
-                      },
-                      child: Card(
-                        elevation: 3,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    child: Card(
+                      elevation: 3,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                      child: InkWell(
+                        onTap: () => Navigator.push(context, MaterialPageRoute(
+                          builder: (context) => DailyDetailView(selectedDay: event.startTime, existingEvent: event)
+                        )),
                         child: Padding(
                           padding: const EdgeInsets.all(16),
                           child: IntrinsicHeight(
@@ -81,10 +66,10 @@ class EventListView extends StatelessWidget {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text("ออมเพื่อ: ${item['title']}", 
+                                      Text("ออมเพื่อ: ${event.title}", 
                                           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                                       const SizedBox(height: 4),
-                                      Text("เป้าหมาย: ${item['targetDate'].day}/${item['targetDate'].month} ($timeInfo)",
+                                      Text("เป้าหมาย: ${event.startTime.day}/${event.startTime.month} ($timeInfo)",
                                           style: const TextStyle(color: Colors.grey, fontSize: 12)),
                                     ],
                                   ),
@@ -97,35 +82,34 @@ class EventListView extends StatelessWidget {
                                         style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                                     const SizedBox(height: 8),
                                     ElevatedButton(
-                                      onPressed: isSavedToday 
+                                      onPressed: isFull 
                                           ? null 
-                                          : () async {
-                                              await vm.loadBankInfo(); 
-                                              if (vm.savedPromptPay.isEmpty) {
+                                          : () {
+                                              if (profileVM.profile?.promptPay == null || profileVM.profile!.promptPay!.isEmpty) {
                                                 ScaffoldMessenger.of(context).showSnackBar(
-                                                  const SnackBar(content: Text("กรุณาตั้งค่าบัญชีธนาคารก่อนออมเงิน"))
+                                                  const SnackBar(content: Text("กรุณาตั้งค่าบัญชีธนาคารในหน้า Profile ก่อนครับ"))
                                                 );
                                                 return;
                                               }
                                               Navigator.push(context, MaterialPageRoute(
                                                 builder: (context) => QRPaymentView(
-                                                  eventId: item['id'],
+                                                  eventId: event.id,
                                                   amount: item['amount'],
-                                                  title: "ออมเพื่อ ${item['title']}",
-                                                  promptPayId: vm.savedPromptPay,
-                                                  accountName: vm.savedAlias,
+                                                  title: "ออมเพื่อ ${event.title}",
+                                                  promptPayId: profileVM.profile!.promptPay!,
+                                                  accountName: profileVM.profile!.accountName ?? "ออมเงิน",
                                                   currentDay: selectedDay,
                                                   useSlipVerification: false,
                                                 )
                                               ));
                                             }, 
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: isSavedToday ? Colors.grey.shade300 : Colors.orange.shade100,
-                                        foregroundColor: isSavedToday ? Colors.grey : Colors.orange.shade900,
-                                        elevation: isSavedToday ? 0 : 2,
+                                        backgroundColor: isFull ? Colors.grey.shade300 : Colors.orange.shade100,
+                                        foregroundColor: isFull ? Colors.grey : Colors.orange.shade900,
+                                        elevation: isFull ? 0 : 2,
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                                       ),
-                                      child: Text(isSavedToday ? "ออมแล้ว" : "ออมเลย"),
+                                      child: Text(isFull ? "ครบแล้ว" : "ออมเลย"),
                                     ),
                                   ],
                                 ),
@@ -140,7 +124,6 @@ class EventListView extends StatelessWidget {
               ),
             ],
 
-            // --- ส่วนแสดงกิจกรรมที่จะเกิดขึ้นวันนี้ ---
             const Padding(
               padding: EdgeInsets.all(16.0),
               child: Text("กิจกรรมวันนี้", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
@@ -171,15 +154,9 @@ class EventListView extends StatelessWidget {
       floatingActionButton: FloatingActionButton(
         child: const Icon(Icons.add),
         onPressed: () {
-          // เช็คก่อนว่ามีกิจกรรม All Day ไหม
-          final error = vm.checkTimeOverlap(selectedDay, DateTime.now(), DateTime.now(), true);
-          if (error != null && events.isNotEmpty && events.any((e) => e.isAllDay)) {
-             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
-          } else {
-             Navigator.push(context, MaterialPageRoute(
-               builder: (context) => DailyDetailView(selectedDay: selectedDay)
-             ));
-          }
+          Navigator.push(context, MaterialPageRoute(
+            builder: (context) => DailyDetailView(selectedDay: selectedDay)
+          ));
         },
       ),
     );

@@ -40,8 +40,8 @@ class _QRPaymentViewState extends State<QRPaymentView> {
   void _processConfirm(BuildContext context) {
     final vm = Provider.of<DailyDetailViewModel>(context, listen: false);
     
-    // อัปเดตสถานะใน ViewModel
-    vm.confirmSaving(widget.currentDay, widget.eventId, widget.amount);
+    // อัปเดตสถานะใน ViewModel (ย้ายไป Firestore)
+    vm.confirmSaving(widget.eventId, widget.amount);
     
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("ออมเงินสำเร็จ!"), backgroundColor: Colors.green),

@@ -64,16 +64,14 @@ class _SettingsViewState extends State<SettingsView> {
         children: [
           Consumer<ProfileViewModel>(
             builder: (context, profileVM, child) {
-              final localImage = profileVM.profile?.profileImagePath;
+              final localImage = profileVM.profile?.photoUrl;
               
               return GestureDetector(
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileMainView())),
                 child: CircleAvatar(
                   radius: 35,
                   backgroundColor: Colors.blue.shade100,
-                  backgroundImage: localImage != null 
-                      ? FileImage(File(localImage)) 
-                      : (user.photoURL != null ? NetworkImage(user.photoURL!) as ImageProvider : null),
+                  backgroundImage: _buildImageProvider(localImage ?? user.photoURL),
                   child: (localImage == null && user.photoURL == null) 
                       ? const Icon(Icons.person, size: 40, color: Colors.blue) 
                       : null,
@@ -174,5 +172,14 @@ class _SettingsViewState extends State<SettingsView> {
         );
       },
     );
+  }
+
+  ImageProvider? _buildImageProvider(String? path) {
+    if (path == null) return null;
+    if (path.startsWith('http')) {
+      return NetworkImage(path);
+    } else {
+      return FileImage(File(path));
+    }
   }
 }
