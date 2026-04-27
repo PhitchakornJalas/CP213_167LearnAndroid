@@ -64,7 +64,6 @@ class DailyDetailViewModel extends ChangeNotifier {
   List<Map<String, dynamic>> getSavingsBreakdownForDay(DateTime date) {
     List<Map<String, dynamic>> breakdown = [];
     final calendarDay = DateTime(date.year, date.month, date.day);
-    final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
 
     for (var event in _allEvents) {
       if (event.totalBudget <= 0) continue;

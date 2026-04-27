@@ -6,6 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'services/firebase_service.dart';
 import 'views/auth_gate.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -55,6 +56,16 @@ class MyApp extends StatelessWidget {
       ),
       // ใช้ AuthGate เป็นหน้าหลัก เพื่อควบคุมการเข้าถึง
       home: const AuthGate(),
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('th', 'TH'),
+        Locale('en', 'US'),
+      ],
+      locale: const Locale('th', 'TH'),
     );
   }
 }

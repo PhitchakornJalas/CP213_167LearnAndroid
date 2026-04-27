@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/daily_detail_viewmodel.dart';
 import 'event_list_view.dart';
@@ -15,6 +16,7 @@ class _HomeViewState extends State<HomeView> {
   CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
+  final GlobalKey _titleKey = GlobalKey(); // เพิ่ม Key สำหรับหาตำแหน่ง
   
   // 1. เพิ่มตัวแปรสำหรับเก็บ Index ของเมนูที่เลือก
   int _selectedIndex = 0;
@@ -37,23 +39,33 @@ class _HomeViewState extends State<HomeView> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_selectedIndex == 0 ? 'Plan Travel' : 'ตั้งค่า'),
-        backgroundColor: Colors.blueAccent,
-        actions: _selectedIndex == 0 ? [
-          Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: TextButton(
-              onPressed: _goToToday,
-              child: const Text(
-                'วันนี้',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
+        titleSpacing: 10,
+        centerTitle: false,
+        title: _selectedIndex == 0 
+          ? InkWell(
+              key: _titleKey, // ใส่ Key ตรงนี้ครับ
+              onTap: () => _showMonthPicker(context),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _getMonthName(_focusedDay.month) + " ${_focusedDay.year}",
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: Colors.black),
+                  ),
+                  const Icon(Icons.arrow_drop_down, color: Colors.black),
+                ],
               ),
-            ),
+            )
+          : const Text('ตั้งค่า', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        actions: _selectedIndex == 0 ? [
+          IconButton(
+            icon: const Icon(Icons.today, color: Colors.blueAccent),
+            onPressed: _goToToday,
+            tooltip: "วันนี้",
           ),
+          const SizedBox(width: 8),
         ] : null,
       ),
       body: _selectedIndex == 0 
@@ -102,17 +114,25 @@ class _HomeViewState extends State<HomeView> {
     final dailyVM = Provider.of<DailyDetailViewModel>(context);
     
     return TableCalendar(
+      locale: 'th_TH',
       eventLoader: (day) => dailyVM.getEventsForDay(day),
       firstDay: DateTime.utc(2020, 1, 1),
       lastDay: DateTime.utc(2100, 12, 31),
       focusedDay: _focusedDay,
       calendarFormat: _calendarFormat,
       rowHeight: 120,
-      availableGestures: AvailableGestures.all, // ให้เลื่อนปฏิทินได้ปกติ
+      availableGestures: AvailableGestures.all, 
       selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+      headerVisible: false, // ย้ายมาอยู่ตรงนี้ครับ
       headerStyle: const HeaderStyle(
         formatButtonVisible: false,
-        titleCentered: true,
+      ),
+      daysOfWeekStyle: DaysOfWeekStyle(
+        dowTextFormatter: (date, locale) {
+          return ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."][date.weekday % 7];
+        },
+        weekdayStyle: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
+        weekendStyle: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
       ),
       onDaySelected: (selectedDay, focusedDay) {
         setState(() {
@@ -132,6 +152,132 @@ class _HomeViewState extends State<HomeView> {
         outsideBuilder: (context, day, focusedDay) => _buildCell(day, dailyVM, isOutside: true),
         holidayBuilder: (context, day, focusedDay) => _buildCell(day, dailyVM),
       ),
+    );
+  }
+
+  String _getMonthName(int month) {
+    return [
+      "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+      "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
+    ][month - 1];
+  }
+
+  void _showMonthPicker(BuildContext context) {
+    final RenderBox renderBox = _titleKey.currentContext!.findRenderObject() as RenderBox;
+    final Offset offset = renderBox.localToGlobal(Offset.zero);
+
+    // ใช้ตัวแปรชั่วคราวสำหรับเก็บค่าที่กำลังเลื่อน
+    int tempMonth = _focusedDay.month;
+    int tempYear = _focusedDay.year;
+
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: "Dismiss",
+      barrierColor: Colors.transparent,
+      pageBuilder: (context, anim1, anim2) {
+        return StatefulBuilder( // ใช้ StatefulBuilder เพื่อให้ UI ใน Popup อัปเดตลื่นไหล
+          builder: (context, setPopupState) {
+            return Stack(
+              children: [
+                Positioned(
+                  top: offset.dy + renderBox.size.height,
+                  left: offset.dx,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: Container(
+                      width: 320,
+                      height: 250,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(25),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, spreadRadius: 5)
+                        ],
+                      ),
+                      child: Stack(
+                        children: [
+                          Center(
+                            child: Container(
+                              height: 48,
+                              margin: const EdgeInsets.symmetric(horizontal: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  flex: 3,
+                                  child: CupertinoPicker(
+                                    scrollController: FixedExtentScrollController(initialItem: tempMonth - 1),
+                                    itemExtent: 48,
+                                    selectionOverlay: const SizedBox(),
+                                    onSelectedItemChanged: (index) {
+                                      setPopupState(() => tempMonth = index + 1);
+                                      setState(() {
+                                        _focusedDay = DateTime(_focusedDay.year, tempMonth, 1);
+                                      });
+                                    },
+                                    children: List.generate(12, (index) {
+                                      bool isSelected = (index + 1) == tempMonth;
+                                      return Center(
+                                        child: Text(
+                                          _getMonthName(index + 1),
+                                          style: TextStyle(
+                                            fontSize: 24,
+                                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                            color: isSelected ? Colors.black : Colors.grey.shade400,
+                                          ),
+                                        ),
+                                      );
+                                    }),
+                                  ),
+                                ),
+                                Expanded(
+                                  flex: 2,
+                                  child: CupertinoPicker(
+                                    scrollController: FixedExtentScrollController(initialItem: tempYear - 2020),
+                                    itemExtent: 48,
+                                    selectionOverlay: const SizedBox(),
+                                    onSelectedItemChanged: (index) {
+                                      setPopupState(() => tempYear = 2020 + index);
+                                      setState(() {
+                                        _focusedDay = DateTime(tempYear, _focusedDay.month, 1);
+                                      });
+                                    },
+                                    children: List.generate(31, (index) {
+                                      bool isSelected = (2020 + index) == tempYear;
+                                      return Center(
+                                        child: Text(
+                                          "${2020 + index}",
+                                          style: TextStyle(
+                                            fontSize: 24,
+                                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                            color: isSelected ? Colors.black : Colors.grey.shade400,
+                                          ),
+                                        ),
+                                      );
+                                    }),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }
+        );
+      },
     );
   }
 
