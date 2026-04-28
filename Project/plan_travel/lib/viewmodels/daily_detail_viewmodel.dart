@@ -114,7 +114,7 @@ class DailyDetailViewModel extends ChangeNotifier {
         .fold(0.0, (sum, item) => sum + item['amount']);
   }
 
-  Future<void> confirmSaving(double amount, List<Map<String, dynamic>> breakdown) async {
+  Future<void> confirmSaving(double amount, List<Map<String, dynamic>> breakdown, {String? referenceId}) async {
     for (var item in breakdown) {
       DailyDetailModel event = item['event'];
       double amountToSaveForThisEvent = item['amount'];
@@ -135,8 +135,24 @@ class DailyDetailViewModel extends ChangeNotifier {
         event.budgetItems[0].savedAmount += remainingAmount;
       }
 
-      await _firebaseService.saveEvent(event);
+      // บันทึก referenceId และสถานะ isSaved
+      final updatedEvent = event.copyWith(
+        referenceId: referenceId,
+        isSaved: true,
+      );
+
+      await _firebaseService.saveEvent(updatedEvent);
     }
+  }
+
+  // --- ระบบตรวจสอบสลิปซ้ำ ---
+
+  Future<bool> isSlipUsed(String refId) => _firebaseService.isSlipUsed(refId);
+
+  Future<void> registerSlip(String refId) {
+    final uid = _firebaseService.uid;
+    if (uid == null) return Future.value();
+    return _firebaseService.registerSlip(refId, uid);
   }
 
   bool isSameDay(DateTime a, DateTime b) {

@@ -37,6 +37,8 @@ class DailyDetailModel {
   final DateTime endTime;
   final DateTime createdAt;
   final DateTime? savingStartDate;
+  final String? referenceId;
+  final bool isSaved;
 
   DailyDetailModel({
     required this.id,
@@ -47,6 +49,8 @@ class DailyDetailModel {
     required this.endTime,
     required this.createdAt,
     this.savingStartDate,
+    this.referenceId,
+    this.isSaved = false,
   });
 
   double get totalBudget => budgetItems.fold(0.0, (sum, item) => sum + item.targetAmount);
@@ -61,6 +65,8 @@ class DailyDetailModel {
       'createdAt': Timestamp.fromDate(createdAt),
       'savingStartDate': savingStartDate != null ? Timestamp.fromDate(savingStartDate!) : null,
       'budgetItems': budgetItems.map((item) => item.toMap()).toList(),
+      'referenceId': referenceId,
+      'isSaved': isSaved,
     };
   }
 
@@ -85,6 +91,8 @@ class DailyDetailModel {
               ?.map((item) => BudgetItem.fromMap(item as Map<String, dynamic>))
               .toList() ??
           [],
+      referenceId: map['referenceId'],
+      isSaved: map['isSaved'] ?? false,
     );
   }
 
@@ -97,6 +105,8 @@ class DailyDetailModel {
     DateTime? endTime,
     DateTime? createdAt,
     DateTime? savingStartDate,
+    String? referenceId,
+    bool? isSaved,
   }) {
     return DailyDetailModel(
       id: id ?? this.id,
@@ -107,6 +117,8 @@ class DailyDetailModel {
       endTime: endTime ?? this.endTime,
       createdAt: createdAt ?? this.createdAt,
       savingStartDate: savingStartDate ?? this.savingStartDate,
+      referenceId: referenceId ?? this.referenceId,
+      isSaved: isSaved ?? this.isSaved,
     );
   }
 }

@@ -66,4 +66,21 @@ class FirebaseService {
     if (uid == null) return;
     await _db.collection('users').doc(uid).collection('events').doc(eventId).delete();
   }
+
+  // --- ระบบตรวจสอบสลิปซ้ำ (Global) ---
+  
+  /// ตรวจสอบว่า Reference ID นี้เคยถูกใช้ไปแล้วหรือยังในระบบทั้งหมด
+  Future<bool> isSlipUsed(String referenceId) async {
+    final doc = await _db.collection('global_transactions').doc(referenceId).get();
+    return doc.exists;
+  }
+
+  /// บันทึกการใช้งานสลิปลงในคอลเลกชันกลาง
+  Future<void> registerSlip(String referenceId, String userUid) async {
+    await _db.collection('global_transactions').doc(referenceId).set({
+      'user_uid': userUid,
+      'used_at': FieldValue.serverTimestamp(),
+      'reference_id': referenceId,
+    });
+  }
 }

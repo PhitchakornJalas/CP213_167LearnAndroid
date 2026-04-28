@@ -101,7 +101,8 @@ class EventListView extends StatelessWidget {
                                                   totalAmount: item['amount'],
                                                   promptPayId: profileVM.profile!.promptPay!,
                                                   accountName: profileVM.profile!.accountName ?? "ออมเงิน",
-                                                  useSlipVerification: false,
+                                                  targetDate: selectedDay,
+                                                  useSlipVerification: true,
                                                 )
                                               ));
                                             }, 
