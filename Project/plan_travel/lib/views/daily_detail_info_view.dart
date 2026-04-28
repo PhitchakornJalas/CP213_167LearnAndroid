@@ -17,8 +17,8 @@ class DailyDetailInfoView extends StatelessWidget {
         _buildInfoTile(
           "ช่วงเวลา", 
           event.isAllDay 
-              ? "${DateFormat('dd/MM/yyyy').format(event.startTime)} (ตลอดวัน)"
-              : "${DateFormat('dd/MM/yyyy').format(event.startTime)}  ${DateFormat('HH:mm').format(event.startTime)} - ${DateFormat('HH:mm').format(event.endTime)}", 
+              ? "${DateFormat('d MMMM yyyy', 'th_TH').format(event.startTime)} ตลอดวัน"
+              : "${DateFormat('d MMMM yyyy', 'th_TH').format(event.startTime)}  ${DateFormat('HH:mm').format(event.startTime)} - ${DateFormat('HH:mm').format(event.endTime)}", 
           Icons.calendar_today_outlined
         ),
         const Divider(),
