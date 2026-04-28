@@ -10,9 +10,17 @@ import 'views/splash_view.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+import 'services/notification_service.dart';
+import 'viewmodels/settings_viewmodel.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  final prefs = await SharedPreferences.getInstance();
+  final notificationService = NotificationService();
+  await notificationService.init();
+
   // เริ่มต้นภาษาไทยสำหรับ DateFormat
   await initializeDateFormatting('th_TH', null);
   
@@ -35,6 +43,7 @@ Future<void> main() async {
         Provider.value(value: firebaseService),
         ChangeNotifierProvider(create: (context) => DailyDetailViewModel(firebaseService)),
         ChangeNotifierProvider(create: (context) => ProfileViewModel(firebaseService)),
+        ChangeNotifierProvider(create: (context) => SettingsViewModel(prefs)),
       ],
       child: const MyApp(),
     ),

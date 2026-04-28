@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import '../viewmodels/daily_detail_viewmodel.dart';
 import 'event_list_view.dart';
 import 'settings_view.dart';
+import '../viewmodels/settings_viewmodel.dart';
+import '../services/notification_service.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -21,11 +23,48 @@ class _HomeViewState extends State<HomeView> {
   // 1. เพิ่มตัวแปรสำหรับเก็บ Index ของเมนูที่เลือก
   int _selectedIndex = 0;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAndManageNotifications();
+    });
+  }
+
+  void _checkAndManageNotifications() async {
+    final dailyVM = Provider.of<DailyDetailViewModel>(context, listen: false);
+    final settingsVM = Provider.of<SettingsViewModel>(context, listen: false);
+    final notificationService = NotificationService();
+
+    if (!settingsVM.savingReminderEnabled) {
+      await notificationService.cancelNotification(100);
+      return;
+    }
+
+    // เช็คว่าวันนี้มีรายการต้องออมไหม
+    final now = DateTime.now();
+    double pendingAmount = dailyVM.getTotalSavingAmount(now);
+
+    if (pendingAmount <= 0) {
+      // ออมครบแล้ว หยุดแจ้งเตือน
+      await notificationService.cancelNotification(100);
+    } else {
+      // ยังออมไม่ครบ ให้แจ้งเตือนต่อตามความถี่ที่ตั้งไว้
+      await notificationService.scheduleSavingReminder(
+        id: 100,
+        intervalHours: settingsVM.savingReminderInterval,
+      );
+    }
+  }
+
   // 2. ฟังก์ชันสำหรับจัดการการกดเปลี่ยนเมนู
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
+    if (index == 0) {
+      _checkAndManageNotifications();
+    }
   }
 
   @override

@@ -6,6 +6,8 @@ import '../viewmodels/daily_detail_viewmodel.dart';
 import '../models/daily_detail_model.dart';
 import 'daily_detail_info_view.dart';
 import 'package:intl/intl.dart';
+import '../services/notification_service.dart';
+import '../viewmodels/settings_viewmodel.dart';
 
 class DailyDetailView extends StatefulWidget {
   final DateTime selectedDay;
@@ -274,8 +276,8 @@ class _DailyDetailViewState extends State<DailyDetailView> {
               else
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 8.0),
-                  child: Text("* แผนการออมถูกกำหนดแล้ว", 
-                      style: TextStyle(color: Colors.grey, fontSize: 12, fontStyle: FontStyle.italic)),
+                  // child: Text("* แผนการออมถูกกำหนดแล้ว", 
+                  //     style: TextStyle(color: Colors.grey, fontSize: 12, fontStyle: FontStyle.italic)),
                 ),
             ],
 
@@ -383,6 +385,42 @@ class _DailyDetailViewState extends State<DailyDetailView> {
     );
 
     await vm.addOrUpdateEvent(newEvent);
+
+    // --- Schedule Notification if enabled ---
+    final settingsVM = context.read<SettingsViewModel>();
+    final notificationService = NotificationService();
+
+    if (settingsVM.eventCountdownEnabled) {
+      await notificationService.scheduleEventAlert(
+        eventId: newEvent.id,
+        eventTitle: newEvent.title,
+        eventStartTime: newEvent.startTime,
+        daysBefore: settingsVM.eventCountdownDays,
+        hour: settingsVM.eventCountdownTime.hour,
+        minute: settingsVM.eventCountdownTime.minute,
+      );
+    }
+
+    if (settingsVM.eventReminderBeforeEnabled && !newEvent.isAllDay) {
+      await notificationService.scheduleEventStartAlert(
+        eventId: newEvent.id,
+        eventTitle: newEvent.title,
+        eventStartTime: newEvent.startTime,
+        hoursBefore: settingsVM.eventReminderBeforeHours,
+      );
+    }
+
+    // --- Schedule Immediate Saving Notification if starts today ---
+    if (settingsVM.savingReminderEnabled && newEvent.savingStartDate != null && newEvent.totalBudget > 0) {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final startDate = newEvent.savingStartDate!;
+      final savingStartDay = DateTime(startDate.year, startDate.month, startDate.day);
+      
+      if (savingStartDay.isAtSameMomentAs(today) || savingStartDay.isBefore(today)) {
+        await notificationService.showImmediateSavingReminder();
+      }
+    }
 
     setState(() {
       _currentEvent = newEvent;

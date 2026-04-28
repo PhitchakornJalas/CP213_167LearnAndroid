@@ -6,6 +6,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import 'bank_account_view.dart';
 import 'profile_main_view.dart';
+import 'notification_settings_view.dart';
+import '../viewmodels/settings_viewmodel.dart';
+import '../services/notification_service.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -158,7 +161,7 @@ class _SettingsViewState extends State<SettingsView> {
             ),
             const Divider(),
             
-            // รายการเมนูที่เหลืออยู่
+            // รายการเมนูจัดการบัญชี
             ListTile(
               leading: const Icon(Icons.account_balance, color: Colors.green),
               title: const Text("จัดการบัญชีธนาคาร"),
@@ -166,6 +169,19 @@ class _SettingsViewState extends State<SettingsView> {
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => const BankAccountView()));
+              },
+            ),
+
+            const Divider(),
+
+            // เมนูการแจ้งเตือน
+            ListTile(
+              leading: const Icon(Icons.notifications_active, color: Colors.blueAccent),
+              title: const Text("การแจ้งเตือน"),
+              subtitle: const Text("ตั้งค่าแจ้งเตือนออมเงินและกิจกรรม"),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationSettingsView()));
               },
             ),
           ],
