@@ -154,7 +154,10 @@ class _HomeViewState extends State<HomeView> {
         markerBuilder: (context, date, events) => const SizedBox(),
         defaultBuilder: (context, day, focusedDay) => _buildCell(day, dailyVM),
         todayBuilder: (context, day, focusedDay) => _buildCell(day, dailyVM, isToday: true),
-        selectedBuilder: (context, day, focusedDay) => _buildCell(day, dailyVM, isSelected: true),
+        selectedBuilder: (context, day, focusedDay) {
+          final isToday = isSameDay(day, DateTime.now());
+          return _buildCell(day, dailyVM, isSelected: true, isToday: isToday);
+        },
         outsideBuilder: (context, day, focusedDay) => _buildCell(day, dailyVM, isOutside: true),
         holidayBuilder: (context, day, focusedDay) => _buildCell(day, dailyVM),
       ),
@@ -301,13 +304,14 @@ class _HomeViewState extends State<HomeView> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 2),
       decoration: BoxDecoration(
-        color: isSelected ? Colors.grey.shade100 : null, // ลงสีเทาจางๆ เต็มช่อง
-        border: Border.all(color: Colors.grey.shade100, width: 0.5),
+        // วันที่เลือก = ลงสีเทาจางๆ ทั้งช่อง (ใช้ shade200 เพื่อให้เห็นชัดเจนขึ้น)
+        color: isSelected ? Colors.grey.shade200 : null,
+        border: Border.all(color: isSelected ? Colors.grey.shade300 : Colors.grey.shade100, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // ส่วนตัวเลขวันที่ (ชิดบน ตรงกลาง พร้อมไฮไลท์วงกลมเฉพาะ "วันนี้")
+          // ส่วนตัวเลขวันที่
           Container(
             margin: const EdgeInsets.only(top: 4),
             width: 28,
@@ -316,14 +320,14 @@ class _HomeViewState extends State<HomeView> {
             decoration: isToday 
               ? const BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.black,
+                  color: Colors.black, // วันนี้ = วงกลมสีดำ
                 )
               : null,
             child: Text(
               '${day.day}',
               style: TextStyle(
                 color: isToday 
-                  ? Colors.white 
+                  ? Colors.white // วันนี้ = ตัวเลขสีขาว
                   : (isOutside ? Colors.grey : Colors.black87),
                 fontSize: 13,
                 fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
