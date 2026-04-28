@@ -128,7 +128,9 @@ class _QRPaymentViewState extends State<QRPaymentView> {
     final vm = Provider.of<DailyDetailViewModel>(context, listen: false);
     
     // บันทึกการออมเลย ไม่ต้องเช็คอะไรทั้งนั้น
-    await vm.confirmSaving(widget.totalAmount, widget.savingBreakdown, referenceId: _scannedRefId);
+    await vm.confirmSaving(widget.totalAmount, widget.savingBreakdown, 
+        referenceId: _scannedRefId, 
+        targetDate: widget.targetDate); // ส่งวันที่เป้าหมายไปด้วย
     
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

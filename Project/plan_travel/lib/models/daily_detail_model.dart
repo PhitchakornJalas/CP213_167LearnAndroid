@@ -37,6 +37,8 @@ class DailyDetailModel {
   final DateTime endTime;
   final DateTime createdAt;
   final DateTime? savingStartDate;
+  final DateTime? lastSavingDate;
+  final double dailyTarget; // ยอดออมต่อวันที่วางแผนไว้
   final String? referenceId;
   final bool isSaved;
 
@@ -49,6 +51,8 @@ class DailyDetailModel {
     required this.endTime,
     required this.createdAt,
     this.savingStartDate,
+    this.lastSavingDate,
+    this.dailyTarget = 0.0,
     this.referenceId,
     this.isSaved = false,
   });
@@ -64,6 +68,8 @@ class DailyDetailModel {
       'endTime': Timestamp.fromDate(endTime),
       'createdAt': Timestamp.fromDate(createdAt),
       'savingStartDate': savingStartDate != null ? Timestamp.fromDate(savingStartDate!) : null,
+      'lastSavingDate': lastSavingDate != null ? Timestamp.fromDate(lastSavingDate!) : null,
+      'dailyTarget': dailyTarget,
       'budgetItems': budgetItems.map((item) => item.toMap()).toList(),
       'referenceId': referenceId,
       'isSaved': isSaved,
@@ -87,6 +93,10 @@ class DailyDetailModel {
       savingStartDate: map['savingStartDate'] is Timestamp 
           ? (map['savingStartDate'] as Timestamp).toDate() 
           : null,
+      lastSavingDate: map['lastSavingDate'] is Timestamp 
+          ? (map['lastSavingDate'] as Timestamp).toDate() 
+          : null,
+      dailyTarget: (map['dailyTarget'] ?? 0.0).toDouble(),
       budgetItems: (map['budgetItems'] as List<dynamic>?)
               ?.map((item) => BudgetItem.fromMap(item as Map<String, dynamic>))
               .toList() ??
@@ -105,6 +115,8 @@ class DailyDetailModel {
     DateTime? endTime,
     DateTime? createdAt,
     DateTime? savingStartDate,
+    DateTime? lastSavingDate,
+    double? dailyTarget,
     String? referenceId,
     bool? isSaved,
   }) {
@@ -117,6 +129,8 @@ class DailyDetailModel {
       endTime: endTime ?? this.endTime,
       createdAt: createdAt ?? this.createdAt,
       savingStartDate: savingStartDate ?? this.savingStartDate,
+      lastSavingDate: lastSavingDate ?? this.lastSavingDate,
+      dailyTarget: dailyTarget ?? this.dailyTarget,
       referenceId: referenceId ?? this.referenceId,
       isSaved: isSaved ?? this.isSaved,
     );

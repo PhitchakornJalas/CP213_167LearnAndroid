@@ -101,11 +101,17 @@ class EventListView extends StatelessWidget {
                                         style: TextStyle(
                                           fontSize: 18, 
                                           fontWeight: FontWeight.bold,
-                                          color: isPaid ? Colors.green : Colors.black,
+                                          color: isPaid ? Colors.green : (item['isLocked'] == true ? Colors.grey : Colors.black),
                                         )),
-                                    const SizedBox(height: 8),
+                                    const SizedBox(height: 4),
+                                    if (item['isLocked'] == true)
+                                      Text(
+                                        item['lockMessage'] ?? "กรุณาออมของวันก่อนหน้าให้ครบก่อน",
+                                        style: const TextStyle(color: Colors.red, fontSize: 8, fontWeight: FontWeight.bold),
+                                      ),
+                                    const SizedBox(height: 4),
                                     ElevatedButton(
-                                      onPressed: (isPaid || isFull) 
+                                      onPressed: (isPaid || isFull || item['isLocked'] == true) 
                                           ? null 
                                           : () {
                                               if (profileVM.profile?.promptPay == null || profileVM.profile!.promptPay!.isEmpty) {

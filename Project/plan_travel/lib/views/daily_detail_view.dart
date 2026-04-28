@@ -197,7 +197,15 @@ class _DailyDetailViewState extends State<DailyDetailView> {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final selectedDayOnly = DateTime(widget.selectedDay.year, widget.selectedDay.month, widget.selectedDay.day);
-    final isLocked = selectedDayOnly.isBefore(today) || selectedDayOnly.isAtSameMomentAs(today);
+
+    // ล็อคการลบ/เลิกกิจกรรม ถ้าเป็นวันในอดีต
+    final isPastLocked = selectedDayOnly.isBefore(today);
+    
+    // ล็อคปุ่มบันทึกและแก้ไขข้อมูลทั่วไป เฉพาะวันในอดีต (วันนี้ยังบันทึกได้)
+    final isTodayOrFuture = !isPastLocked;
+
+    // ล็อคแผนการออมและงบประมาณเดิม ถ้าเคยบันทึกไปแล้ว (มี _currentEvent)
+    final isPlanLocked = _currentEvent != null;
 
     double totalBudget = _budgetList.fold(0.0, (sum, item) => sum + item.targetAmount);
 
@@ -205,7 +213,7 @@ class _DailyDetailViewState extends State<DailyDetailView> {
       appBar: AppBar(
         title: Text(_isSaved ? 'รายละเอียดกิจกรรม' : 'รายละเอียดรายวัน'),
         actions: [
-          if (_isSaved && !isLocked)
+          if (_isSaved && isTodayOrFuture)
             IconButton(
               icon: const Icon(Icons.edit),
               onPressed: () => setState(() => _isSaved = false),
@@ -220,14 +228,14 @@ class _DailyDetailViewState extends State<DailyDetailView> {
               children: [
             TextField(
               controller: _titleController,
-              enabled: !isLocked,
+              enabled: isTodayOrFuture,
               decoration: const InputDecoration(labelText: 'ชื่อกิจกรรม/เป้าหมาย', border: OutlineInputBorder()),
             ),
             const SizedBox(height: 10),
             SwitchListTile(
               title: const Text("ตลอดวัน"),
               value: _isAllDay,
-              onChanged: isLocked ? null : (v) {
+              onChanged: !isTodayOrFuture ? null : (v) {
                 setState(() {
                   _isAllDay = v;
                   if (_isAllDay) {
@@ -246,27 +254,27 @@ class _DailyDetailViewState extends State<DailyDetailView> {
               trailing: Text(_isAllDay 
                   ? DateFormat('E d MMM yyyy', 'th_TH').format(_startDateTime)
                   : "${DateFormat('E d MMM yyyy', 'th_TH').format(_startDateTime)}  ${DateFormat('HH:mm').format(_startDateTime)}"),
-              onTap: (isLocked || _isAllDay) ? null : () => _showCustomDatePicker(true),
+              onTap: (!isTodayOrFuture || _isAllDay) ? null : () => _showCustomDatePicker(true),
             ),
             ListTile(
               title: const Text("ถึง"),
               trailing: Text(_isAllDay 
                   ? DateFormat('E d MMM yyyy', 'th_TH').format(_endDateTime)
                   : "${DateFormat('E d MMM yyyy', 'th_TH').format(_endDateTime)}  ${DateFormat('HH:mm').format(_endDateTime)}"),
-              onTap: (isLocked || _isAllDay) ? null : () => _showCustomDatePicker(false),
+              onTap: (!isTodayOrFuture || _isAllDay) ? null : () => _showCustomDatePicker(false),
             ),
             const SizedBox(height: 20),
-            _buildBudgetSection(isLocked),
+            _buildBudgetSection(!isTodayOrFuture),
             
-            if (totalBudget > 0 && !isLocked) ...[
+            if (totalBudget > 0 && isTodayOrFuture) ...[
               const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text("แผนการออมเงิน", style: TextStyle(fontWeight: FontWeight.bold)),
-                  if (widget.existingEvent != null && widget.existingEvent!.savingStartDate != null)
+                  if (_currentEvent != null && _currentEvent!.savingStartDate != null)
                     Text(
-                      "ระยะเวลาออมทั้งหมด ${_formatDays(widget.existingEvent!.startTime.difference(widget.existingEvent!.savingStartDate!).inDays)}",
+                      "ระยะเวลาออมทั้งหมด ${_formatDays(_currentEvent!.startTime.difference(_currentEvent!.savingStartDate!).inDays)}",
                       style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13),
                     )
                   else if (_startDateTime.isAfter(today))
@@ -276,9 +284,7 @@ class _DailyDetailViewState extends State<DailyDetailView> {
                     ),
                 ],
               ),
-              // ถ้ายังไม่เคยมีเป้าหมายการเงินจริงๆ (Target > 0) ให้เปิดให้วางแผนได้
-              if (widget.existingEvent == null || 
-                  widget.existingEvent!.budgetItems.every((item) => item.targetAmount == 0))
+              if (!isPlanLocked)
                 Column(
                   children: [
                     RadioListTile<String>(
@@ -296,13 +302,13 @@ class _DailyDetailViewState extends State<DailyDetailView> {
               else
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 8.0),
-                  // child: Text("* แผนการออมถูกกำหนดแล้ว", 
-                  //     style: TextStyle(color: Colors.grey, fontSize: 12, fontStyle: FontStyle.italic)),
+                  child: Text("* แผนการออมถูกกำหนดแล้ว ไม่สามารถแก้ไขได้", 
+                      style: TextStyle(color: Colors.grey, fontSize: 12, fontStyle: FontStyle.italic)),
                 ),
             ],
 
             const SizedBox(height: 30),
-            if (!isLocked)
+            if (isTodayOrFuture)
               Column(
                 children: [
                   SizedBox(
@@ -383,16 +389,22 @@ class _DailyDetailViewState extends State<DailyDetailView> {
     }
 
     final savingStart = _calculateSavingStartDate();
-    if (savingStart.isBefore(today) && _currentEvent == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('แผนการออมไม่สามารถเริ่มในอดีตได้ กรุณาปรับจำนวนวัน'), 
-          backgroundColor: Colors.orange
-        )
-      );
-      return;
-    }
     
+    // --- คำนวณ Daily Target ใหม่เฉพาะตอนบันทึก/แก้ไขงบ ---
+    final eventDay = DateTime(_startDateTime.year, _startDateTime.month, _startDateTime.day);
+    
+    // หาวันที่เหลืออยู่เพื่อหารเฉลี่ย (อย่างน้อย 1 วัน)
+    int remainingDays = eventDay.difference(today).inDays;
+    if (remainingDays < 1) remainingDays = 1;
+
+    // ยอดรวมงบประมาณทั้งหมด
+    double currentTotalBudget = _budgetList.fold(0.0, (sum, item) => sum + item.targetAmount);
+
+    // ยอดรวมที่เหลือต้องออม ณ ตอนนี้
+    double currentSaved = _currentEvent?.totalSaved ?? 0.0;
+    double remainingBudget = (currentTotalBudget - currentSaved).clamp(0.0, currentTotalBudget);
+    double calculatedDailyTarget = (remainingBudget / remainingDays).ceilToDouble();
+
     final newEvent = DailyDetailModel(
       id: _currentEvent?.id ?? '',
       title: _titleController.text,
@@ -402,56 +414,73 @@ class _DailyDetailViewState extends State<DailyDetailView> {
       endTime: _endDateTime,
       createdAt: _currentEvent?.createdAt ?? DateTime.now(),
       savingStartDate: savingStart,
+      dailyTarget: calculatedDailyTarget, // บันทึกยอดที่คำนวณได้ ณ ตอนที่มีการแก้ไข
+      lastSavingDate: _currentEvent?.lastSavingDate,
     );
 
     final savedId = await vm.addOrUpdateEvent(newEvent);
     final updatedEvent = newEvent.copyWith(id: savedId);
 
-    // --- Schedule Notification if enabled ---
-    final settingsVM = context.read<SettingsViewModel>();
-    final notificationService = NotificationService();
+    // --- Schedule Notifications with Error Handling ---
+    try {
+      final settingsVM = context.read<SettingsViewModel>();
+      final notificationService = NotificationService();
 
-    if (settingsVM.eventCountdownEnabled) {
-      await notificationService.scheduleEventAlert(
-        eventId: updatedEvent.id,
-        eventTitle: updatedEvent.title,
-        eventStartTime: updatedEvent.startTime,
-        daysBefore: settingsVM.eventCountdownDays,
-        hour: settingsVM.eventCountdownTime.hour,
-        minute: settingsVM.eventCountdownTime.minute,
-      );
-    }
-
-    if (settingsVM.eventReminderBeforeEnabled && !updatedEvent.isAllDay) {
-      await notificationService.scheduleEventStartAlert(
-        eventId: updatedEvent.id,
-        eventTitle: updatedEvent.title,
-        eventStartTime: updatedEvent.startTime,
-        hoursBefore: settingsVM.eventReminderBeforeHours,
-      );
-    }
-
-    // --- Schedule Immediate Saving Notification if starts today ---
-    if (settingsVM.savingReminderEnabled && updatedEvent.savingStartDate != null && updatedEvent.totalBudget > 0) {
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      final startDate = updatedEvent.savingStartDate!;
-      final savingStartDay = DateTime(startDate.year, startDate.month, startDate.day);
-      
-      if (savingStartDay.isAtSameMomentAs(today) || savingStartDay.isBefore(today)) {
-        await notificationService.showImmediateSavingReminder();
+      if (settingsVM.eventCountdownEnabled) {
+        await notificationService.scheduleEventAlert(
+          eventId: updatedEvent.id,
+          eventTitle: updatedEvent.title,
+          eventStartTime: updatedEvent.startTime,
+          daysBefore: settingsVM.eventCountdownDays,
+          hour: settingsVM.eventCountdownTime.hour,
+          minute: settingsVM.eventCountdownTime.minute,
+        );
       }
-    }
 
-    setState(() {
-      _currentEvent = updatedEvent;
-      _isSaved = true;
-    });
+      if (settingsVM.eventReminderBeforeEnabled && !updatedEvent.isAllDay) {
+        await notificationService.scheduleEventStartAlert(
+          eventId: updatedEvent.id,
+          eventTitle: updatedEvent.title,
+          eventStartTime: updatedEvent.startTime,
+          hoursBefore: settingsVM.eventReminderBeforeHours,
+        );
+      }
+
+      if (settingsVM.savingReminderEnabled && updatedEvent.savingStartDate != null && updatedEvent.totalBudget > 0) {
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
+        final startDate = updatedEvent.savingStartDate!;
+        final savingStartDay = DateTime(startDate.year, startDate.month, startDate.day);
+        
+        if (savingStartDay.isAtSameMomentAs(today) || savingStartDay.isBefore(today)) {
+          await notificationService.showImmediateSavingReminder();
+        }
+      }
+    } catch (e) {
+      debugPrint("Notification Scheduling Error: $e");
+      // ไม่หยุดการทำงานหลักแม้ระบบแจ้งเตือนจะขัดข้อง
+    }
 
     if (mounted) {
+      setState(() {
+        _currentEvent = updatedEvent;
+        _isSaved = true;
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('บันทึกข้อมูลสำเร็จ'), backgroundColor: Colors.green)
+        const SnackBar(
+          content: Text('บันทึกข้อมูลสำเร็จ'), 
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 1),
+        )
       );
+
+      // หน่วงเวลาเล็กน้อยเพื่อให้เห็น Snack Bar ก่อนปิดหน้า
+      Future.delayed(const Duration(milliseconds: 1000), () {
+        if (mounted) {
+          Navigator.pop(context);
+        }
+      });
     }
   }
 

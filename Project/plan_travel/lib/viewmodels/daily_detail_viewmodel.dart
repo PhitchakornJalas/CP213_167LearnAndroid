@@ -41,7 +41,7 @@ class DailyDetailViewModel extends ChangeNotifier {
   }
 
   List<DailyDetailModel> getEventsForDay(DateTime date) {
-    return _allEvents.where((e) => isSameDay(e.startTime, date)).toList()
+    return _allEvents.where((e) => _isSameDay(e.startTime, date)).toList()
       ..sort((a, b) {
         if (a.isAllDay) return -1;
         if (b.isAllDay) return 1;
@@ -63,6 +63,8 @@ class DailyDetailViewModel extends ChangeNotifier {
 
   List<Map<String, dynamic>> getSavingsBreakdownForDay(DateTime date) {
     List<Map<String, dynamic>> breakdown = [];
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
     final calendarDay = DateTime(date.year, date.month, date.day);
 
     for (var event in _allEvents) {
@@ -72,34 +74,81 @@ class DailyDetailViewModel extends ChangeNotifier {
       final start = DateTime(effectiveStart.year, effectiveStart.month, effectiveStart.day);
       final eventDay = DateTime(event.startTime.year, event.startTime.month, event.startTime.day);
 
-      // แสดงรายการออมตั้งแต่วันเริ่มแผน จนถึง "ก่อน" วันเดินทาง
       if ((calendarDay.isAtSameMomentAs(start) || calendarDay.isAfter(start)) && 
           calendarDay.isBefore(eventDay)) {
         
-        // 1. คำนวณยอดออมต่อวันแบบเฉลี่ย (Fixed Rate จากงบทั้งหมด)
-        int totalDays = eventDay.difference(start).inDays;
-        if (totalDays <= 0) continue;
-        double amountPerDay = (event.totalBudget / totalDays).ceilToDouble();
+        int totalDaysInPlan = eventDay.difference(start).inDays;
+        if (totalDaysInPlan <= 0) continue;
 
-        // 2. คำนวณว่า "จนถึงวันนี้" ควรจะออมไปแล้วเท่าไหร่
-        int daysPassedIncludingToday = calendarDay.difference(start).inDays + 1;
-        double expectedSavedSoFar = amountPerDay * daysPassedIncludingToday;
-        if (expectedSavedSoFar > event.totalBudget) expectedSavedSoFar = event.totalBudget;
+        // --- 1. ใช้ยอดออมที่บันทึกไว้ใน Model (Daily Target) ---
+        // จะไม่คำนวณใหม่ทุกวัน เพื่อป้องกันยอดออมลดลงเรื่อยๆ จากเศษที่ปัดขึ้น
+        double amountToShow = event.dailyTarget > 0 ? event.dailyTarget : (event.totalBudget / totalDaysInPlan).ceilToDouble();
 
-        // 3. เช็คสถานะ: ถ้าเป้าหมายของวันนี้คือ 100 บาท และยอดออมรวม (totalSaved) >= 100 แสดงว่าวันนี้ "ออมแล้ว"
-        bool isPaidToday = event.totalSaved >= expectedSavedSoFar;
+        // ยอดฐาน (ใช้สำหรับเช็คยอดสะสมเพื่อล็อคลำดับ)
+        double baseAmountPerDay = (event.totalBudget / totalDaysInPlan).ceilToDouble();
 
-        // 4. ถ้าเป็นวันในอดีต และยังออมไม่ถึงเป้าหมายที่ควรจะเป็น -> ก็โชว์ค้างออม (แต่อาจจะจ่ายย้อนหลังได้)
-        // ถ้าเป็นวันปัจจุบัน หรืออนาคต -> โชว์ยอดออมตามปกติ
+        // --- 2. เช็คสถานะการจ่าย (Smart Historical Target) ---
+        int remainingDaysFromToday = eventDay.difference(today).inDays;
+        if (remainingDaysFromToday < 1) remainingDaysFromToday = 1;
+        int daysPassedBeforeToday = totalDaysInPlan - remainingDaysFromToday;
+
+        // คำนวณหา "ยอดออมต่อวันในอดีต" (ก่อนที่จะมีการแก้ Budget ล่าสุด)
+        double historicalAmountPerDay = daysPassedBeforeToday > 0 
+            ? (event.totalBudget - (amountToShow * remainingDaysFromToday)) / daysPassedBeforeToday
+            : amountToShow;
+
+        double targetCumulativeAtDate;
+        int daysToCalendarDay = calendarDay.difference(start).inDays + 1;
+
+        if (calendarDay.isBefore(today)) {
+          // ถ้าเป็นวันในอดีต: ใช้ยอดออมเดิมคำนวณเป้าสะสม
+          targetCumulativeAtDate = (historicalAmountPerDay * daysToCalendarDay).clamp(0.0, event.totalBudget);
+        } else {
+          // ถ้าเป็นวันนี้หรืออนาคต: ใช้ (ยอดออมในอดีตทั้งหมด) + (ยอดออมใหม่วันนี้ * จำนวนวันที่ผ่านมาจากวันนี้)
+          int daysFromTodayToCalendarDay = calendarDay.difference(today).inDays + 1;
+          targetCumulativeAtDate = ((historicalAmountPerDay * daysPassedBeforeToday) + (amountToShow * daysFromTodayToCalendarDay)).clamp(0.0, event.totalBudget);
+        }
         
-        // กรองเฉพาะวันที่ "วันนี้" หรือ "ในอนาคต" เพื่อไม่ให้ปฏิทินย้อนหลังรก (หรือโชว์ทั้งหมดตาม User บอกว่า "ไม่ได้ให้หายไป")
-        // ในที่นี้ผมโชว์ทั้งหมดตามความตั้งใจของ User ครับ
+        bool isPaidAtDate = event.totalSaved >= (targetCumulativeAtDate - 0.1); // ลดหย่อนเศษทศนิยมเล็กน้อย
+        
+        if (event.lastSavingDate != null) {
+          final lastSave = DateTime(event.lastSavingDate!.year, event.lastSavingDate!.month, event.lastSavingDate!.day);
+          if (lastSave.isAtSameMomentAs(calendarDay) || lastSave.isAfter(calendarDay)) {
+            isPaidAtDate = true;
+          }
+        }
+
+        // --- 3. เช็คการ Lock ลำดับการออม ---
+        bool isLocked = false;
+        String? lockMessage;
+        
+        final dayBeforeSelected = calendarDay.subtract(const Duration(days: 1));
+        if (dayBeforeSelected.isAfter(start) || dayBeforeSelected.isAtSameMomentAs(start)) {
+           int daysToDayBefore = dayBeforeSelected.difference(start).inDays + 1;
+           double targetAtDayBefore = (baseAmountPerDay * daysToDayBefore).clamp(0.0, event.totalBudget);
+           
+           bool isDayBeforePaid = event.totalSaved >= targetAtDayBefore;
+           if (event.lastSavingDate != null) {
+             final lastSave = DateTime(event.lastSavingDate!.year, event.lastSavingDate!.month, event.lastSavingDate!.day);
+             if (lastSave.isAtSameMomentAs(dayBeforeSelected) || lastSave.isAfter(dayBeforeSelected)) {
+               isDayBeforePaid = true;
+             }
+           }
+
+           if (!isDayBeforePaid) {
+             isLocked = true;
+             lockMessage = "กรุณาออมของวันที่ ${_formatThaiDateShort(dayBeforeSelected)} ให้ครบก่อน";
+           }
+        }
+
         breakdown.add({
           'id': event.id,
           'title': event.title,
-          'amount': amountPerDay,
-          'isPaid': isPaidToday, // สถานะว่าจ่ายของวันนี้หรือยัง
-          'isFull': event.totalSaved >= event.totalBudget, // จ่ายครบทั้งโปรเจกต์หรือยัง
+          'amount': amountToShow,
+          'isPaid': isPaidAtDate,
+          'isLocked': isLocked,
+          'lockMessage': lockMessage,
+          'isFull': event.totalSaved >= event.totalBudget,
           'event': event,
         });
       }
@@ -108,13 +157,15 @@ class DailyDetailViewModel extends ChangeNotifier {
   }
 
   double getTotalSavingAmount(DateTime date) {
-    // รวมเฉพาะยอดที่ "ยังไม่ได้จ่าย" ในวันนั้นๆ
     return getSavingsBreakdownForDay(date)
         .where((item) => !item['isPaid'])
         .fold(0.0, (sum, item) => sum + item['amount']);
   }
 
-  Future<void> confirmSaving(double amount, List<Map<String, dynamic>> breakdown, {String? referenceId}) async {
+  Future<void> confirmSaving(double amount, List<Map<String, dynamic>> breakdown, {String? referenceId, DateTime? targetDate}) async {
+    final now = DateTime.now();
+    final effectiveTargetDate = targetDate ?? now;
+
     for (var item in breakdown) {
       DailyDetailModel event = item['event'];
       double amountToSaveForThisEvent = item['amount'];
@@ -135,17 +186,15 @@ class DailyDetailViewModel extends ChangeNotifier {
         event.budgetItems[0].savedAmount += remainingAmount;
       }
 
-      // บันทึก referenceId และสถานะ isSaved
       final updatedEvent = event.copyWith(
         referenceId: referenceId,
         isSaved: true,
+        lastSavingDate: effectiveTargetDate,
       );
 
       await _firebaseService.saveEvent(updatedEvent);
     }
   }
-
-  // --- ระบบตรวจสอบสลิปซ้ำ ---
 
   Future<bool> isSlipUsed(String refId) => _firebaseService.isSlipUsed(refId);
 
@@ -155,7 +204,15 @@ class DailyDetailViewModel extends ChangeNotifier {
     return _firebaseService.registerSlip(refId, uid);
   }
 
-  bool isSameDay(DateTime a, DateTime b) {
+  String _formatThaiDateShort(DateTime date) {
+    final months = [
+      "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
+      "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."
+    ];
+    return "${date.day} ${months[date.month - 1]} ${date.year + 543}";
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
