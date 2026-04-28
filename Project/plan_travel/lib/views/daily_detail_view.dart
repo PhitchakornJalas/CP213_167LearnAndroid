@@ -33,6 +33,8 @@ class _DailyDetailViewState extends State<DailyDetailView> {
   bool _isAllDay = true;
   late DateTime _startDateTime;
   late DateTime _endDateTime;
+  int _initialBudgetCount = 0;
+  List<double> _originalAmounts = [];
 
   @override
   void initState() {
@@ -52,11 +54,13 @@ class _DailyDetailViewState extends State<DailyDetailView> {
     _titleController = TextEditingController(text: detail?.title ?? '');
     
     if (detail != null) {
-      _budgetList = List<BudgetItem>.from(detail.budgetItems.map((e) => BudgetItem(
+       _budgetList = List<BudgetItem>.from(detail.budgetItems.map((e) => BudgetItem(
         label: e.label, 
         targetAmount: e.targetAmount,
         savedAmount: e.savedAmount,
       )));
+       _initialBudgetCount = detail.budgetItems.length;
+      _originalAmounts = detail.budgetItems.map((e) => e.targetAmount).toList();
       _isAllDay = detail.isAllDay;
       _startDateTime = detail.startTime;
       _endDateTime = detail.endTime;
@@ -234,20 +238,45 @@ class _DailyDetailViewState extends State<DailyDetailView> {
             
             if (totalBudget > 0 && !isLocked) ...[
               const SizedBox(height: 20),
-              const Align(
-                alignment: Alignment.centerLeft, 
-                child: Text("แผนการออมเงิน", style: TextStyle(fontWeight: FontWeight.bold))
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text("แผนการออมเงิน", style: TextStyle(fontWeight: FontWeight.bold)),
+                  if (widget.existingEvent != null && widget.existingEvent!.savingStartDate != null)
+                    Text(
+                      "ระยะเวลาออมทั้งหมด ${widget.existingEvent!.startTime.difference(widget.existingEvent!.savingStartDate!).inDays} วัน",
+                      style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13),
+                    )
+                  else if (_startDateTime.isAfter(today))
+                    Text(
+                      "ระยะเวลาออม ${_startDateTime.difference(_calculateSavingStartDate()).inDays} วัน",
+                      style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                ],
               ),
-              RadioListTile<String>(
-                title: const Text("ตั้งแต่วันนี้"),
-                value: 'today', 
-                groupValue: _selectedType,
-                onChanged: (v) => setState(() => _selectedType = v!),
-              ),
-              _buildPlanRadio("วัน", 'day', _dayController),
-              _buildPlanRadio("สัปดาห์", 'week', _weekController),
-              _buildPlanRadio("เดือน", 'month', _monthController),
-              _buildPlanRadio("ปี", 'year', _yearController),
+              // ถ้ายังไม่เคยมีเป้าหมายการเงินจริงๆ (Target > 0) ให้เปิดให้วางแผนได้
+              if (widget.existingEvent == null || 
+                  widget.existingEvent!.budgetItems.every((item) => item.targetAmount == 0))
+                Column(
+                  children: [
+                    RadioListTile<String>(
+                      title: const Text("ตั้งแต่วันนี้"),
+                      value: 'today', 
+                      groupValue: _selectedType,
+                      onChanged: (v) => setState(() => _selectedType = v!),
+                    ),
+                    _buildPlanRadio("วัน", 'day', _dayController),
+                    _buildPlanRadio("สัปดาห์", 'week', _weekController),
+                    _buildPlanRadio("เดือน", 'month', _monthController),
+                    _buildPlanRadio("ปี", 'year', _yearController),
+                  ],
+                )
+              else
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8.0),
+                  child: Text("* แผนการออมถูกกำหนดแล้ว", 
+                      style: TextStyle(color: Colors.grey, fontSize: 12, fontStyle: FontStyle.italic)),
+                ),
             ],
 
             const SizedBox(height: 30),
@@ -406,6 +435,8 @@ class _DailyDetailViewState extends State<DailyDetailView> {
         ..._budgetList.asMap().entries.map((entry) {
           int index = entry.key;
           BudgetItem item = entry.value;
+          // ล็อคเฉพาะรายการที่ "เคย" มีมูลค่ามาก่อน (ดึงมาจาก DB แล้ว > 0)
+          bool isItemLocked = (index < _originalAmounts.length && _originalAmounts[index] > 0);
 
           return Padding(
             padding: const EdgeInsets.only(bottom: 10),
@@ -415,7 +446,7 @@ class _DailyDetailViewState extends State<DailyDetailView> {
                   flex: 2,
                   child: TextField(
                     controller: TextEditingController(text: item.label)..selection = TextSelection.collapsed(offset: item.label.length),
-                    enabled: !isLocked,
+                    enabled: !isLocked && !isItemLocked,
                     decoration: const InputDecoration(hintText: "เช่น ค่าข้าว", border: OutlineInputBorder()),
                     onChanged: (val) => item.label = val,
                   ),
@@ -425,7 +456,7 @@ class _DailyDetailViewState extends State<DailyDetailView> {
                   flex: 1,
                   child: TextField(
                     controller: TextEditingController(text: item.targetAmount == 0 ? '' : item.targetAmount.toInt().toString())..selection = TextSelection.collapsed(offset: (item.targetAmount == 0 ? '' : item.targetAmount.toInt().toString()).length),
-                    enabled: !isLocked,
+                    enabled: !isLocked && !isItemLocked,
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     decoration: const InputDecoration(hintText: "บาท", border: OutlineInputBorder()),
@@ -441,8 +472,11 @@ class _DailyDetailViewState extends State<DailyDetailView> {
                 ),
                 if (!isLocked)
                   IconButton(
-                    icon: const Icon(Icons.remove_circle, color: Colors.red),
-                    onPressed: () {
+                    icon: Icon(
+                      isItemLocked ? Icons.lock : Icons.remove_circle,
+                      color: isItemLocked ? Colors.grey : Colors.red,
+                    ),
+                    onPressed: isItemLocked ? null : () {
                       setState(() {
                         if (_budgetList.length > 1) {
                           _budgetList.removeAt(index);
