@@ -4,6 +4,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:promptpay_qrcode_generate/promptpay_qrcode_generate.dart';
 import 'package:provider/provider.dart';
 import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
+import 'package:screenshot/screenshot.dart';
+import 'package:gal/gal.dart';
+import 'package:path_provider/path_provider.dart';
 import '../viewmodels/daily_detail_viewmodel.dart';
 
 class QRPaymentView extends StatefulWidget {
@@ -32,6 +35,32 @@ class _QRPaymentViewState extends State<QRPaymentView> {
   XFile? _slipImage;
   String? _scannedRefId;
   bool _isScanning = false;
+  final ScreenshotController _screenshotController = ScreenshotController();
+
+  Future<void> _downloadQR() async {
+    try {
+      final image = await _screenshotController.capture();
+      if (image == null) return;
+
+      final directory = await getTemporaryDirectory();
+      final imagePath = await File('${directory.path}/qr_code.png').create();
+      await imagePath.writeAsBytes(image);
+
+      await Gal.putImage(imagePath.path);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("บันทึก QR Code ลงเครื่องสำเร็จ!"), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("เกิดข้อผิดพลาด: $e"), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
 
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
@@ -84,30 +113,40 @@ class _QRPaymentViewState extends State<QRPaymentView> {
         const SizedBox(height: 20),
         
         Center(
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
-            ),
-            child: Column(
-              children: [
-                QRCodeGenerate(
-                  promptPayId: widget.promptPayId.replaceAll(RegExp(r'[^0-9]'), ''), 
-                  amount: double.parse(widget.totalAmount.toStringAsFixed(2)),
-                  width: 220,
-                  height: 220,
-                ),
-                const SizedBox(height: 10),
-                const Text("Scan QR เพื่อโอนเงิน", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
-              ],
+          child: Screenshot(
+            controller: _screenshotController,
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  QRCodeGenerate(
+                    promptPayId: widget.promptPayId.replaceAll(RegExp(r'[^0-9]'), ''), 
+                    amount: double.parse(widget.totalAmount.toStringAsFixed(2)),
+                    width: 220,
+                    height: 220,
+                  ),
+                  const SizedBox(height: 10),
+                  const Text("Scan QR เพื่อโอนเงิน", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+                  Text("ชื่อบัญชี: ${widget.accountName}", style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  Text("พร้อมเพย์: ${widget.promptPayId}", style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                ],
+              ),
             ),
           ),
         ),
-        const SizedBox(height: 20),
-        Text("ชื่อบัญชี: ${widget.accountName}", style: const TextStyle(fontWeight: FontWeight.bold)),
-        Text("พร้อมเพย์: ${widget.promptPayId}"),
+        const SizedBox(height: 15),
+        TextButton.icon(
+          onPressed: _downloadQR,
+          icon: const Icon(Icons.download),
+          label: const Text("ดาวน์โหลด QR Code"),
+          style: TextButton.styleFrom(foregroundColor: Colors.blueAccent),
+        ),
       ],
     );
   }
