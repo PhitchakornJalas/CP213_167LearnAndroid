@@ -444,7 +444,13 @@ class _DailyDetailViewState extends State<DailyDetailView> {
                     icon: const Icon(Icons.remove_circle, color: Colors.red),
                     onPressed: () {
                       setState(() {
-                        if (_budgetList.length > 1) _budgetList.removeAt(index);
+                        if (_budgetList.length > 1) {
+                          _budgetList.removeAt(index);
+                        } else {
+                          // ถ้าเหลืออันสุดท้าย ให้ล้างข้อมูลแทนการลบ
+                          _budgetList[index].label = '';
+                          _budgetList[index].targetAmount = 0;
+                        }
                       });
                     },
                   ),
