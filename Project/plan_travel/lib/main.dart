@@ -6,6 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'services/firebase_service.dart';
 import 'views/auth_gate.dart';
+import 'views/splash_view.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 Future<void> main() async {
@@ -55,8 +56,8 @@ class MyApp extends StatelessWidget {
           foregroundColor: Colors.black,
         ),
       ),
-      // ใช้ AuthGate เป็นหน้าหลัก เพื่อควบคุมการเข้าถึง
-      home: const AuthGate(),
+      // เริ่มต้นด้วยหน้า Splash Screen
+      home: const SplashView(),
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,

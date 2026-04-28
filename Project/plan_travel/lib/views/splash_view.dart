@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'home_view.dart';
+import 'auth_gate.dart';
 
 class SplashView extends StatefulWidget {
   const SplashView({super.key});
@@ -12,43 +12,47 @@ class _SplashViewState extends State<SplashView> {
   @override
   void initState() {
     super.initState();
-    _navigateToHome();
+    _navigateToNext();
   }
 
-  _navigateToHome() async {
-    // หน่วงเวลา 2 วินาที (Dummy)
+  _navigateToNext() async {
+    // หน่วงเวลา 2 วินาที (เพื่อให้ Splash Screen แสดงผล)
     await Future.delayed(const Duration(seconds: 2));
 
     if (!mounted) return;
 
-    // ย้ายไปหน้า Calendar และลบหน้า Splash ออกจาก Stack (ย้อนกลับไม่ได้)
+    // ย้ายไปที่ AuthGate เพื่อเช็คสถานะ Login
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const HomeView()),
+      MaterialPageRoute(builder: (context) => const AuthGate()),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-      backgroundColor: Colors.blueAccent, // สีพื้นหลังชั่วคราว
+      backgroundColor: Colors.white, // เปลี่ยนเป็นสีขาวตามหน้า Login
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // เดี๋ยวค่อยมาใส่รูป Logo ตรงนี้
-            Icon(Icons.calendar_month, size: 100, color: Colors.white),
+            Icon(Icons.calendar_month, size: 120, color: Colors.blueAccent),
             SizedBox(height: 20),
             Text(
-              'Plan Travel App',
+              'Plan Travel',
               style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
+                color: Colors.black87,
+                fontSize: 32,
                 fontWeight: FontWeight.bold,
+                letterSpacing: 1.2,
               ),
             ),
-            SizedBox(height: 20),
-            CircularProgressIndicator(color: Colors.white), // ตัวหมุน Loading
+            Text(
+              'วางแผนการออม เพื่อทริปในฝันของคุณ',
+              style: TextStyle(color: Colors.grey, fontSize: 16),
+            ),
+            SizedBox(height: 50),
+            CircularProgressIndicator(color: Colors.blueAccent), // สีน้ำเงินตามหน้า Login
           ],
         ),
       ),
