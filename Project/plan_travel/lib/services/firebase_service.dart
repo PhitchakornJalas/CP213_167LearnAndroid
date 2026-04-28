@@ -37,13 +37,15 @@ class FirebaseService {
     }
   }
 
-  Future<void> saveEvent(DailyDetailModel event) async {
-    if (uid == null) return;
+  Future<String> saveEvent(DailyDetailModel event) async {
+    if (uid == null) return '';
     final eventCollection = _db.collection('users').doc(uid).collection('events');
     if (event.id.isEmpty) {
-      await eventCollection.add(event.toMap());
+      final docRef = await eventCollection.add(event.toMap());
+      return docRef.id;
     } else {
       await eventCollection.doc(event.id).set(event.toMap(), SetOptions(merge: true));
+      return event.id;
     }
   }
 

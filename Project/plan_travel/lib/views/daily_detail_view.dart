@@ -160,6 +160,26 @@ class _DailyDetailViewState extends State<DailyDetailView> {
     }
   }
 
+  String _formatDays(int totalDays) {
+    if (totalDays <= 0) return "0 วัน";
+    
+    int years = totalDays ~/ 365;
+    int remainingDays = totalDays % 365;
+    int months = remainingDays ~/ 30;
+    remainingDays %= 30;
+    int weeks = remainingDays ~/ 7;
+    remainingDays %= 7;
+    int days = remainingDays;
+    
+    List<String> parts = [];
+    if (years > 0) parts.add("$years ปี");
+    if (months > 0) parts.add("$months เดือน");
+    if (weeks > 0) parts.add("$weeks สัปดาห์");
+    if (days > 0) parts.add("$days วัน");
+    
+    return parts.isEmpty ? "0 วัน" : parts.join(' ');
+  }
+
   bool _isPlanInvalid(String type, int value) {
     if (value <= 0) return true;
     final now = DateTime.now();
@@ -246,12 +266,12 @@ class _DailyDetailViewState extends State<DailyDetailView> {
                   const Text("แผนการออมเงิน", style: TextStyle(fontWeight: FontWeight.bold)),
                   if (widget.existingEvent != null && widget.existingEvent!.savingStartDate != null)
                     Text(
-                      "ระยะเวลาออมทั้งหมด ${widget.existingEvent!.startTime.difference(widget.existingEvent!.savingStartDate!).inDays} วัน",
+                      "ระยะเวลาออมทั้งหมด ${_formatDays(widget.existingEvent!.startTime.difference(widget.existingEvent!.savingStartDate!).inDays)}",
                       style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13),
                     )
                   else if (_startDateTime.isAfter(today))
                     Text(
-                      "ระยะเวลาออม ${_startDateTime.difference(_calculateSavingStartDate()).inDays} วัน",
+                      "ระยะเวลาออม ${_formatDays(_startDateTime.difference(_calculateSavingStartDate()).inDays)}",
                       style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13),
                     ),
                 ],
@@ -262,7 +282,7 @@ class _DailyDetailViewState extends State<DailyDetailView> {
                 Column(
                   children: [
                     RadioListTile<String>(
-                      title: const Text("ตั้งแต่วันนี้"),
+                      title: Text("ตั้งแต่วันนี้ (${_formatDays(_startDateTime.difference(today).inDays)})"),
                       value: 'today', 
                       groupValue: _selectedType,
                       onChanged: (v) => setState(() => _selectedType = v!),
@@ -384,7 +404,8 @@ class _DailyDetailViewState extends State<DailyDetailView> {
       savingStartDate: savingStart,
     );
 
-    await vm.addOrUpdateEvent(newEvent);
+    final savedId = await vm.addOrUpdateEvent(newEvent);
+    final updatedEvent = newEvent.copyWith(id: savedId);
 
     // --- Schedule Notification if enabled ---
     final settingsVM = context.read<SettingsViewModel>();
@@ -392,29 +413,29 @@ class _DailyDetailViewState extends State<DailyDetailView> {
 
     if (settingsVM.eventCountdownEnabled) {
       await notificationService.scheduleEventAlert(
-        eventId: newEvent.id,
-        eventTitle: newEvent.title,
-        eventStartTime: newEvent.startTime,
+        eventId: updatedEvent.id,
+        eventTitle: updatedEvent.title,
+        eventStartTime: updatedEvent.startTime,
         daysBefore: settingsVM.eventCountdownDays,
         hour: settingsVM.eventCountdownTime.hour,
         minute: settingsVM.eventCountdownTime.minute,
       );
     }
 
-    if (settingsVM.eventReminderBeforeEnabled && !newEvent.isAllDay) {
+    if (settingsVM.eventReminderBeforeEnabled && !updatedEvent.isAllDay) {
       await notificationService.scheduleEventStartAlert(
-        eventId: newEvent.id,
-        eventTitle: newEvent.title,
-        eventStartTime: newEvent.startTime,
+        eventId: updatedEvent.id,
+        eventTitle: updatedEvent.title,
+        eventStartTime: updatedEvent.startTime,
         hoursBefore: settingsVM.eventReminderBeforeHours,
       );
     }
 
     // --- Schedule Immediate Saving Notification if starts today ---
-    if (settingsVM.savingReminderEnabled && newEvent.savingStartDate != null && newEvent.totalBudget > 0) {
+    if (settingsVM.savingReminderEnabled && updatedEvent.savingStartDate != null && updatedEvent.totalBudget > 0) {
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
-      final startDate = newEvent.savingStartDate!;
+      final startDate = updatedEvent.savingStartDate!;
       final savingStartDay = DateTime(startDate.year, startDate.month, startDate.day);
       
       if (savingStartDay.isAtSameMomentAs(today) || savingStartDay.isBefore(today)) {
@@ -423,7 +444,7 @@ class _DailyDetailViewState extends State<DailyDetailView> {
     }
 
     setState(() {
-      _currentEvent = newEvent;
+      _currentEvent = updatedEvent;
       _isSaved = true;
     });
 

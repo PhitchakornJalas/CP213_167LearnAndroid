@@ -32,8 +32,8 @@ class DailyDetailViewModel extends ChangeNotifier {
 
   List<DailyDetailModel> get allEvents => _allEvents;
 
-  Future<void> addOrUpdateEvent(DailyDetailModel event) async {
-    await _firebaseService.saveEvent(event);
+  Future<String> addOrUpdateEvent(DailyDetailModel event) async {
+    return await _firebaseService.saveEvent(event);
   }
 
   Future<void> deleteEvent(String eventId) async {
