@@ -8,9 +8,13 @@ import 'services/firebase_service.dart';
 import 'views/auth_gate.dart';
 import 'views/splash_view.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // เริ่มต้นภาษาไทยสำหรับ DateFormat
+  await initializeDateFormatting('th_TH', null);
   
   // โหลดค่า Environment (.env)
   await dotenv.load(fileName: "assets/env");

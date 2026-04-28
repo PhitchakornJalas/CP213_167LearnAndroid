@@ -5,10 +5,19 @@ import '../models/daily_detail_model.dart';
 import '../viewmodels/profile_viewmodel.dart';
 import 'daily_detail_view.dart';
 import 'qr_payment_view.dart';
+import 'package:intl/intl.dart';
 
 class EventListView extends StatelessWidget {
   final DateTime selectedDay;
   const EventListView({super.key, required this.selectedDay});
+
+  String _formatThaiDate(DateTime date) {
+    String weekday = DateFormat('EEEE', 'th_TH').format(date);
+    String day = date.day.toString();
+    String month = DateFormat('MMMM', 'th_TH').format(date);
+    String year = date.year.toString();
+    return "$weekday $day $month $year";
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +27,7 @@ class EventListView extends StatelessWidget {
     final savings = vm.getSavingsBreakdownForDay(selectedDay);
 
     return Scaffold(
-      appBar: AppBar(title: Text("วันที่ ${selectedDay.day}/${selectedDay.month}/${selectedDay.year}")),
+      appBar: AppBar(title: Text(_formatThaiDate(selectedDay))),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
