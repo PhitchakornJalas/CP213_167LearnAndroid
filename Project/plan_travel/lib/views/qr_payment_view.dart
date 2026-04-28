@@ -7,6 +7,7 @@ import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart
 import 'package:screenshot/screenshot.dart';
 import 'package:gal/gal.dart';
 import 'package:path_provider/path_provider.dart';
+import '../utils/slip_parser.dart';
 import '../viewmodels/daily_detail_viewmodel.dart';
 
 class QRPaymentView extends StatefulWidget {
@@ -36,6 +37,17 @@ class _QRPaymentViewState extends State<QRPaymentView> {
   String? _scannedRefId;
   bool _isScanning = false;
   final ScreenshotController _screenshotController = ScreenshotController();
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
 
   Future<void> _downloadQR() async {
     try {
@@ -72,19 +84,42 @@ class _QRPaymentViewState extends State<QRPaymentView> {
       _isScanning = true;
     });
 
-    // พยายามดึง Ref ID มาเก็บไว้ประดับเฉยๆ ไม่ Block แล้ว
+    // ตรวจสอบเบื้องต้นว่าเป็น QR ธนาคารไทยหรือไม่
     try {
       final inputImage = InputImage.fromFilePath(image.path);
       final barcodeScanner = BarcodeScanner();
       final List<Barcode> barcodes = await barcodeScanner.processImage(inputImage);
+      
+      String? rawValue;
       for (Barcode barcode in barcodes) {
         if (barcode.rawValue != null) {
-          setState(() => _scannedRefId = barcode.rawValue);
+          rawValue = barcode.rawValue;
           break;
         }
       }
+
+      if (rawValue != null) {
+        final slipData = SlipParser.parseEslip(rawValue);
+        // ตรวจสอบแค่ว่าเป็นรูปแบบสลิปไทยหรือไม่ (ไม่สนวันที่/ยอดเงินตามคำขอ)
+        // isBankSlip ในตัวแกะรหัสจะเช็ค 000201 หรือ 00XX ให้เราอยู่แล้ว
+        if (slipData.rawPayload != null && 
+           (slipData.rawPayload!.contains("000201") || slipData.rawPayload!.startsWith("00"))) {
+          setState(() {
+            _scannedRefId = slipData.referenceId ?? "BANK_SLIP_DETECTED";
+          });
+        } else {
+          _showError("รูปภาพนี้ไม่มี QR Code ของสลิปธนาคารไทย");
+          setState(() => _slipImage = null);
+        }
+      } else {
+        _showError("ไม่พบ QR Code ในรูปภาพ");
+        setState(() => _slipImage = null);
+      }
       barcodeScanner.close();
-    } catch (_) {}
+    } catch (e) {
+      _showError("เกิดข้อผิดพลาดในการสแกน: $e");
+      setState(() => _slipImage = null);
+    }
 
     setState(() => _isScanning = false);
   }
