@@ -48,8 +48,8 @@ class EventListView extends StatelessWidget {
                   final DailyDetailModel event = item['event'];
                   
                   String timeInfo = event.isAllDay 
-                      ? "ทั้งวัน" 
-                      : "${event.startTime.hour}:00 - ${event.endTime.hour}:00";
+                      ? "ตลอดวัน" 
+                      : "${DateFormat('HH:mm').format(event.startTime)} - ${DateFormat('HH:mm').format(event.endTime)}";
 
                   // เช็คสถานะการออมจาก ViewModel
                   bool isPaid = item['isPaid'] ?? false;
@@ -75,11 +75,21 @@ class EventListView extends StatelessWidget {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
+                                      // ชื่อกิจกรรม
                                       Text("ออมเพื่อ: ${event.title}", 
                                           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                                       const SizedBox(height: 4),
-                                      Text("เป้าหมาย: ${event.startTime.day}/${event.startTime.month} ($timeInfo)",
-                                          style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                                      // วันที่เป้าหมาย
+                                      Text(
+                                        "เป้าหมาย: ${DateFormat('d MMMM yyyy', 'th_TH').format(event.startTime)}",
+                                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      // ช่วงเวลา
+                                      Text(
+                                        "ช่วงเวลา: $timeInfo",
+                                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                                      ),
                                     ],
                                   ),
                                 ),
