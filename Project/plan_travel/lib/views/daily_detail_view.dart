@@ -281,12 +281,27 @@ class _DailyDetailViewState extends State<DailyDetailView> {
 
             const SizedBox(height: 30),
             if (!isLocked)
-              SizedBox(
-                width: double.infinity, 
-                child: ElevatedButton.icon(
-                  onPressed: _handleSave,
-                  label: const Text('บันทึก'),
-                ),
+              Column(
+                children: [
+                  SizedBox(
+                    width: double.infinity, 
+                    child: ElevatedButton(
+                      onPressed: _handleSave,
+                      child: const Text('บันทึก'),
+                    ),
+                  ),
+                  if (_currentEvent != null) ...[
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: _handleDelete,
+                        style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                        child: const Text('ลบกิจกรรม'),
+                      ),
+                    ),
+                  ],
+                ],
               )
             else
               const Text("* วันนี้หรือย้อนหลังไม่สามารถลงกิจกรรมได้", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
@@ -294,6 +309,29 @@ class _DailyDetailViewState extends State<DailyDetailView> {
         ),
       ),
     );
+  }
+
+  Future<void> _handleDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('ยืนยันการลบ'),
+        content: const Text('คุณแน่ใจหรือไม่ว่าต้องการลบกิจกรรมนี้?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('ยกเลิก')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true), 
+            child: const Text('ลบ', style: TextStyle(color: Colors.red))
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && _currentEvent != null) {
+      final vm = context.read<DailyDetailViewModel>();
+      await vm.deleteEvent(_currentEvent!.id);
+      if (mounted) Navigator.pop(context);
+    }
   }
 
   Future<void> _handleSave() async {
