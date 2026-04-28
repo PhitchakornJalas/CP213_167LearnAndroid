@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../viewmodels/daily_detail_viewmodel.dart';
 import '../models/daily_detail_model.dart';
 import 'daily_detail_info_view.dart';
+import 'package:intl/intl.dart';
 
 class DailyDetailView extends StatefulWidget {
   final DateTime selectedDay;
@@ -111,7 +112,7 @@ class _DailyDetailViewState extends State<DailyDetailView> {
                   child: CupertinoDatePicker(
                     mode: _isAllDay 
                         ? CupertinoDatePickerMode.date 
-                        : CupertinoDatePickerMode.dateAndTime,
+                        : CupertinoDatePickerMode.time,
                     initialDateTime: isStart ? _startDateTime : _endDateTime,
                     minimumDate: isStart ? null : _startDateTime, 
                     onDateTimeChanged: (DateTime newDateTime) {
@@ -217,16 +218,16 @@ class _DailyDetailViewState extends State<DailyDetailView> {
             ListTile(
               title: const Text("เริ่ม"),
               trailing: Text(_isAllDay 
-                  ? "${_startDateTime.day}/${_startDateTime.month}/${_startDateTime.year}" 
-                  : "${_startDateTime.day}/${_startDateTime.month}/${_startDateTime.year}  ${_startDateTime.hour}:${_startDateTime.minute.toString().padLeft(2, '0')}"),
-              onTap: isLocked ? null : () => _showCustomDatePicker(true),
+                  ? DateFormat('E d MMM yyyy', 'th_TH').format(_startDateTime)
+                  : "${DateFormat('E d MMM yyyy', 'th_TH').format(_startDateTime)}  ${DateFormat('HH:mm').format(_startDateTime)}"),
+              onTap: (isLocked || _isAllDay) ? null : () => _showCustomDatePicker(true),
             ),
             ListTile(
               title: const Text("ถึง"),
               trailing: Text(_isAllDay 
-                  ? "${_endDateTime.day}/${_endDateTime.month}/${_endDateTime.year}" 
-                  : "${_endDateTime.day}/${_endDateTime.month}/${_endDateTime.year}  ${_endDateTime.hour}:${_endDateTime.minute.toString().padLeft(2, '0')}"),
-              onTap: isLocked ? null : () => _showCustomDatePicker(false),
+                  ? DateFormat('E d MMM yyyy', 'th_TH').format(_endDateTime)
+                  : "${DateFormat('E d MMM yyyy', 'th_TH').format(_endDateTime)}  ${DateFormat('HH:mm').format(_endDateTime)}"),
+              onTap: (isLocked || _isAllDay) ? null : () => _showCustomDatePicker(false),
             ),
             const SizedBox(height: 20),
             _buildBudgetSection(isLocked),
@@ -255,8 +256,7 @@ class _DailyDetailViewState extends State<DailyDetailView> {
                 width: double.infinity, 
                 child: ElevatedButton.icon(
                   onPressed: _handleSave,
-                  icon: const Icon(Icons.cloud_upload),
-                  label: const Text('บันทึกลง Cloud'),
+                  label: const Text('บันทึก'),
                 ),
               )
             else
